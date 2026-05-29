@@ -1,5 +1,5 @@
-// QMS Service Worker v1.0
-const CACHE = 'qms-v1';
+// QMS Service Worker v1.7
+const CACHE = 'qms-v1.7';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -15,9 +15,10 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Network first for API calls, cache first for assets
-  if (e.request.url.includes('script.google.com')) {
-    return; // Don't cache API calls
+  if (e.request.url.includes('script.google.com') ||
+      e.request.url.includes('anthropic.com') ||
+      e.request.url.includes('googleapis.com')) {
+    return; // Never cache API calls
   }
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
