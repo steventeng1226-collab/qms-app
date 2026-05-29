@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v1.4';
+const BUILD='v1.5';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -310,7 +310,7 @@ async function callClaude(sys,msgs,maxTok){
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true'
       },
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTok||1000,system:sys,messages:msgs})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:maxTok||1000,system:sys,messages:msgs})
     });
     const d=await r.json();
     if(d.error) return'⚠️ Claude錯誤：'+d.error.message;
