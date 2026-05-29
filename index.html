@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v1.8';
+const BUILD='v2.0';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -148,21 +148,72 @@ async function loadFromSheets() {
 async function syncToSheets() {
   if (!SHEETS_URL || cases.length === 0) return;
   setSyncStatus('syncing');
-  const result = await sheetsPost({ action: 'save', cases });
-  setSyncStatus(result && result.saved !== undefined ? 'ok' : 'error');
+  try{
+    const result = await sheetsPost({ action: 'save', cases });
+    if(result && result.saved !== undefined){
+      setSyncStatus('ok');
+      localStorage.setItem('qms_last_sync_count', result.saved);
+    }else{
+      setSyncStatus('error');
+      console.error('Sync failed:',result);
+    }
+  }catch(e){
+    setSyncStatus('error');
+    console.error('Sync error:',e);
+  }
+}
+
+function safeRerender(){
+  // Only re-render if not in the middle of form filling or case detail
+  const safe=['dashboard','list','fqc','stats','yield','settings','placeholder'];
+  if(!safe.includes(screen)) return; // Don't interrupt new case form or detail view
+  if(screen==='dashboard') renderDashboard();
+  else if(screen==='list') renderList();
+  else if(screen==='fqc') renderFQC();
+  else if(screen==='stats') renderStats();
+  else if(screen==='yield') renderYield();
 }
 
 async function manualSync() {
   setSyncStatus('syncing');
   const pulled = await loadFromSheets();
   if (pulled) {
-    const cur = screen;
-    if(cur==='dashboard') renderDashboard();
-    else if(cur==='list') renderList();
-    else if(cur==='fqc') renderFQC();
-    else if(cur==='stats') renderStats();
+    safeRerender();
     setSyncStatus('ok');
   }
+}
+
+async function diagSheets(){
+  if(!SHEETS_URL){alert('未設定Sheets URL');return;}
+  setSyncStatus('syncing');
+  try{
+    const result=await sheetsGet('load');
+    setSyncStatus(result?'ok':'error');
+    const sheetsCount=result?.cases?.length??'錯誤';
+    const localCount=cases.length;
+    const msg=`診斷結果：
+本機案件數：${localCount}
+Sheets案件數：${sheetsCount}
+Sheets時間戳：${result?.ts?new Date(result.ts).toLocaleString('zh-TW'):'無'}
+${sheetsCount!==localCount?'⚠️ 數量不一致！':'✅ 數量一致'}
+${Array.isArray(result?.cases)?'Sheets案件：\n'+result.cases.map(c=>`  - ${c.type} | ${c.what||c.anomalyType||c.id}`).join('\n'):''}`;
+    alert(msg);
+  }catch(e){setSyncStatus('error');alert('診斷失敗：'+e.message);}
+}
+
+async function pushAllToSheets(){
+  if(!confirm(`確定要將本機${cases.length}筆案件全部推送到Sheets？\n這會覆蓋Sheets現有資料。`))return;
+  setSyncStatus('syncing');
+  try{
+    const result=await sheetsPost({action:'save',cases});
+    if(result&&result.saved!==undefined){
+      setSyncStatus('ok');
+      alert(`✅ 已推送 ${result.saved} 筆到Sheets`);
+    }else{
+      setSyncStatus('error');
+      alert('⚠️ 推送失敗：'+(result?.error||'未知錯誤'));
+    }
+  }catch(e){setSyncStatus('error');alert('⚠️ 連線失敗：'+e.message);}
 }
 
 async function forceRefreshFromSheets(){
@@ -219,7 +270,7 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && SHEETS_URL) {
     loadFromSheets().then(loaded => {
-      if (loaded) { renderDashboard(); }
+      if (loaded) safeRerender();
     });
   }
 });
@@ -227,8 +278,8 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('focus', () => {
   if (SHEETS_URL) {
     const last = parseInt(localStorage.getItem('qms_last_sync') || '0');
-    if (Date.now() - last > 30000) { // only if last sync >30 seconds ago
-      loadFromSheets().then(loaded => { if (loaded) renderDashboard(); });
+    if (Date.now() - last > 30000) {
+      loadFromSheets().then(loaded => { if (loaded) safeRerender(); });
     }
   }
 });
@@ -487,7 +538,7 @@ function renderDashboard(){
         <div style="display:flex;gap:6px;align-items:center">
         <span style="font-size:10px;color:#94a3b8;background:#f1f5f9;padding:2px 6px;border-radius:4px">${BUILD}</span>
         <button onclick="promptSheetsUrl()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid ${SHEETS_URL?'#16a34a':'#cbd5e1'};background:${SHEETS_URL?'#f0fdf4':'#fff'};color:${SHEETS_URL?'#16a34a':'#64748b'};cursor:pointer" title="${SHEETS_URL?'Google Sheets已連接':'點擊設定Google Sheets'}">${SHEETS_URL?'☁ 已連接':'☁ 設定同步'}</button>
-        ${SHEETS_URL?`<button onclick="manualSync()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer" title="同步">⟳ 同步</button> <button onclick="forceRefreshFromSheets()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #dc2626;background:#fef2f2;color:#dc2626;cursor:pointer" title="從Sheets完全重新載入">↓ 強制載入</button>`:''}
+        ${SHEETS_URL?`<button onclick="manualSync()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer">⟳ 同步</button> <button onclick="pushAllToSheets()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #16a34a;background:#f0fdf4;color:#16a34a;cursor:pointer">↑ 推送</button> <button onclick="diagSheets()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;cursor:pointer">🔍 診斷</button>`:''}
       </div>
       </div>
       ${openAll.length?`<p style="font-size:12px;color:#d97706;margin-top:6px">⚠️ ${openAll.length} 件進行中</p>`:'<p style="font-size:12px;color:#16a34a;margin-top:6px">✓ 目前無進行中案件</p>'}
@@ -1208,7 +1259,7 @@ function renderPlaceholder(){const labels={ipqc:'IPQC 巡檢查核',yield:'良�
 document.querySelectorAll('.build-tag').forEach(el=>el.textContent=BUILD);
 renderDashboard();updateHdr();
 // Load from Google Sheets on startup
-if(SHEETS_URL){loadFromSheets().then(loaded=>{if(loaded){renderDashboard();setSyncStatus('ok');}});}
+if(SHEETS_URL){loadFromSheets().then(loaded=>{if(loaded){safeRerender();setSyncStatus('ok');}});}
 else{setSyncStatus('idle');}
 </script>
 </body>
