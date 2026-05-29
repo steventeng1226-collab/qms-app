@@ -89,7 +89,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.1';
+const BUILD='v3.2';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -1048,24 +1048,68 @@ function confPD(pid){const c=getCur();if(!c)return;const p=c.pending.find(x=>x.i
 function addTL(){const d=prompt('事件日期（例：5/16）');if(!d)return;const e=prompt('事件描述');if(!e)return;const c=getCur();if(!c)return;c.timeline=[...(c.timeline||[]),{d,e,s:'手動新增',ts:Date.now()}];save();renderDetail();}
 function addPD(){const i=prompt('待確認事項');if(!i)return;const o=prompt('負責人（可留空）')||'';const c=getCur();if(!c)return;c.pending=[...(c.pending||[]),{id:'P'+Date.now(),item:i,owner:o,priority:'medium',confirmed:false,result:'',ts:Date.now()}];save();renderDetail();}
 function addPhoto(){
-  // Show label picker inline instead of prompt (prompt blocks file picker on mobile)
   const existing=document.getElementById('photoLabelPicker');
-  if(existing){existing.remove();return;}
+  if(existing){existing.remove();removePhotoPasteListener();return;}
   const picker=document.createElement('div');
   picker.id='photoLabelPicker';
-  picker.style.cssText='position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.15);width:280px';
-  picker.innerHTML=`<p style="font-size:12px;font-weight:600;color:#64748b;margin:0 0 8px">選擇照片類型</p>
-    <div style="display:flex;flex-wrap:wrap;gap:6px">
-      ${PHOTO_LABELS.map(l=>`<button onclick="selectPhotoLabel('${l}')" style="padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;font-size:12px;cursor:pointer;font-family:inherit">${l}</button>`).join('')}
+  picker.style.cssText='position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.15);width:300px';
+  picker.innerHTML=`
+    <p style="font-size:12px;font-weight:600;color:#64748b;margin:0 0 8px">選擇照片類型</p>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+      ${PHOTO_LABELS.map(l=>`<button onclick="selectPhotoLabel('${l}')" style="padding:5px 9px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;font-size:12px;cursor:pointer;font-family:inherit">${l}</button>`).join('')}
     </div>
-    <button onclick="document.getElementById('photoLabelPicker')?.remove()" style="margin-top:8px;width:100%;padding:6px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:12px;cursor:pointer;color:#94a3b8;font-family:inherit">取消</button>`;
+    <div id="photoPickerAction" style="display:none">
+      <p style="font-size:11px;color:#0284c7;margin:0 0 6px">✅ <span id="photoPickerLabel"></span> — 選擇方式：</p>
+      <div style="display:flex;gap:6px">
+        <button onclick="document.getElementById('photoInput').click()" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid #1d4ed8;background:#eff6ff;color:#1d4ed8;font-size:12px;cursor:pointer;font-family:inherit">📁 相簿選取</button>
+        <button onclick="activatePhotoPaste()" id="photoPasteBtn" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid #7c3aed;background:#f5f3ff;color:#7c3aed;font-size:12px;cursor:pointer;font-family:inherit">📋 貼上截圖</button>
+      </div>
+      <p id="photoPasteHint" style="display:none;font-size:11px;color:#7c3aed;text-align:center;margin:6px 0 0;animation:pulse 1s infinite">等待 Ctrl+V 貼上...</p>
+    </div>
+    <button onclick="document.getElementById('photoLabelPicker')?.remove();removePhotoPasteListener()" style="margin-top:8px;width:100%;padding:6px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:12px;cursor:pointer;color:#94a3b8;font-family:inherit">取消</button>`;
   document.body.appendChild(picker);
 }
 
 function selectPhotoLabel(label){
   photoLabel=label;
-  document.getElementById('photoLabelPicker')?.remove();
-  document.getElementById('photoInput').click();
+  // Update picker to show action selection
+  document.getElementById('photoPickerLabel').textContent=label;
+  document.getElementById('photoPickerAction').style.display='block';
+  document.querySelectorAll('#photoLabelPicker .navbtn, #photoLabelPicker button[onclick^="selectPhotoLabel"]').forEach(b=>{
+    b.style.border='1px solid #e2e8f0';b.style.background='#f8fafc';
+  });
+}
+
+let _photoPasteHandler=null;
+function activatePhotoPaste(){
+  document.getElementById('photoPasteHint').style.display='block';
+  document.getElementById('photoPasteBtn').textContent='⏳ 等待貼上...';
+  removePhotoPasteListener();
+  _photoPasteHandler=function(e){
+    const items=Array.from(e.clipboardData?.items||[]);
+    const imgItem=items.find(i=>i.type.startsWith('image/'));
+    if(imgItem){
+      e.preventDefault();
+      const r=new FileReader();
+      r.onload=ev=>compress(ev.target.result,d=>{
+        const c=getCur();if(!c)return;
+        c.photos=[...(c.photos||[]),{data:d,label:photoLabel,ts:Date.now()}];
+        save();
+        document.getElementById('photoLabelPicker')?.remove();
+        removePhotoPasteListener();
+        renderDetail(false);
+      });
+      r.readAsDataURL(imgItem.getAsFile());
+    }
+  };
+  document.addEventListener('paste',_photoPasteHandler);
+}
+
+function removePhotoPasteListener(){
+  if(_photoPasteHandler){
+    document.removeEventListener('paste',_photoPasteHandler);
+    _photoPasteHandler=null;
+  }
 }
 function rmPhoto(i){if(!confirm('刪除此照片？'))return;const c=getCur();c.photos.splice(i,1);save();renderDetail();}
 function viewPhoto(i){const c=getCur();if(c)window.open(c.photos[i].data,'_blank');}
