@@ -19,9 +19,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 .hdr-title{flex:1;font-size:15px;font-weight:500;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .build-tag{font-size:10px;color:#94a3b8;background:#1e3a5f;padding:2px 6px;border-radius:4px;flex-shrink:0}
 .content{flex:1;padding:10px;padding-bottom:68px}
-.bnav{background:#fff;border-top:1px solid #e2e8f0;display:flex;height:52px;position:fixed;bottom:0;width:100%;max-width:430px;z-index:20;overflow-x:auto;scrollbar-width:none}
-.bnav::-webkit-scrollbar{display:none}
-.navbtn{flex:0 0 calc(100%/6);min-width:54px;border:none;background:none;padding:4px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:8px;color:#94a3b8;border-top:2px solid transparent;font-family:inherit}
+.bnav{background:#fff;border-top:1px solid #e2e8f0;display:grid;grid-template-columns:repeat(6,1fr);height:52px;position:fixed;bottom:0;width:100%;max-width:430px;z-index:20}
+.navbtn{border:none;background:none;padding:4px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:8px;color:#94a3b8;border-top:2px solid transparent;font-family:inherit;overflow:hidden}
 .navbtn.active{color:#1d4ed8;border-top-color:#1d4ed8}
 .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .btn-p{border:none;background:#1d4ed8;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;display:inline-flex;align-items:center;gap:4px}
@@ -89,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v2.8';
+const BUILD='v2.9';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -545,7 +544,7 @@ function ppmStr(c){if(c.defectCount&&c.inputCount){const p=Math.round((parseFloa
 // ── Navigation ─────────────────────────────────────────────
 function navigate(mod){document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));(document.getElementById('nav-'+mod)||document.getElementById('nav-dashboard')).classList.add('active');activeModule=mod;if(mod==='dashboard'){screen='dashboard';renderDashboard();}else if(mod==='complaint'){screen='list';renderList();}else if(mod==='fqc1'){screen='fqc';renderFQC();}else if(mod==='ipqc'){screen='list';renderList();}else if(mod==='yield'){screen='yield';renderYield();}else if(mod==='stats'){screen='stats';renderStats();}else if(mod==='kb'){screen='kb';kbSelected=null;renderKB();document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));document.getElementById('nav-kb').classList.add('active');return;}else{screen='placeholder';renderPlaceholder();}updateHdr();}
 function goBack(){if(screen==='settings'||screen==='stats'||screen==='kb'){screen='dashboard';renderDashboard();}else if(screen==='detail'||screen==='new'){if(activeModule==='fqc1'||activeModule==='fqc2'){fqcTab=activeModule;screen='fqc';renderFQC();}else{screen='list';renderList();}}else{screen='dashboard';renderDashboard();}updateHdr();}
-function openCase(id){const c=cases.find(x=>x.id===id);if(!c)return;curId=id;activeModule=c.type;if(c.type==='fqc2')fqcTab='fqc2';else if(c.type==='fqc1')fqcTab='fqc1';screen='detail';activeTab='paste';renderDetail();updateHdr();document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));const navId=c.type==='fqc2'||c.type==='fqc1'?'nav-fqc1':'nav-'+c.type;(document.getElementById(navId)||document.getElementById('nav-complaint')).classList.add('active');}
+function openCase(id){const c=cases.find(x=>x.id===id);if(!c)return;curId=id;activeModule=c.type;if(c.type==='fqc2')fqcTab='fqc2';else if(c.type==='fqc1')fqcTab='fqc1';screen='detail';activeTab='info';renderDetail(false);updateHdr();document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));const navId=c.type==='fqc2'||c.type==='fqc1'?'nav-fqc1':c.type==='yield'?'nav-yield':c.type==='kb'?'nav-kb':'nav-'+c.type;(document.getElementById(navId)||document.getElementById('nav-complaint')).classList.add('active');}
 function updateHdr(){
   const t=document.getElementById('hdrTitle'),back=document.getElementById('btnBack'),add=document.getElementById('btnAdd');
   const titles={dashboard:'產線異常管理',list:activeModule==='complaint'?'客訴案件':'IPQC 巡檢',fqc:'FQC 異常記錄',yield:'良率分析',stats:'月份一覽表',kb:'知識庫 · QC七大手法',placeholder:'開發中',settings:'設定',new:activeModule==='complaint'?`新增客訴 ${formStep}/2`:activeModule==='ipqc'?'新增IPQC':activeModule==='fqc2'?'新增FQC2':'新增FQC1'};
@@ -823,6 +822,7 @@ function renderDetail(doScroll=true){
       ${photosHtml}
     </div>
     <div class="tab-bar">
+      <button id="tab_info" class="tab-btn ${activeTab==='info'?'active':''}" onclick="switchTab('info')">📋<br>基本</button>
       <button id="tab_paste" class="tab-btn ${activeTab==='paste'?'active':''}" onclick="switchTab('paste')">📥<br>貼入</button>
       <button id="tab_timeline" class="tab-btn ${activeTab==='timeline'?'active':''}" onclick="switchTab('timeline')">${(c.timeline||[]).length?'🕐':'⏱'}<br>時程${(c.timeline||[]).length?'('+c.timeline.length+')':''}</button>
       <button id="tab_pending" class="tab-btn ${activeTab==='pending'?'active':''}" onclick="switchTab('pending')">${pendCnt?'❓':'✓'}<br><span style="${pendCnt?'color:#dc2626':''}">待確認${pendCnt?'('+pendCnt+')':''}</span></button>
@@ -832,9 +832,75 @@ function renderDetail(doScroll=true){
     <div id="tabContent" style="margin-top:8px">${renderTab(c)}</div>`;
   if(doScroll)document.getElementById('chatEnd')?.scrollIntoView({behavior:'smooth'});}
 
-function switchTab(t){activeTab=t;['paste','timeline','pending','discuss','checklist'].forEach(id=>{const b=document.getElementById('tab_'+id);if(b)b.classList.toggle('active',id===t);});const c=getCur();if(c){document.getElementById('tabContent').innerHTML=renderTab(c);document.getElementById('chatEnd')?.scrollIntoView({behavior:'smooth'});}}
+function switchTab(t){activeTab=t;['info','paste','timeline','pending','discuss','checklist'].forEach(id=>{const b=document.getElementById('tab_'+id);if(b)b.classList.toggle('active',id===t);});const c=getCur();if(c){document.getElementById('tabContent').innerHTML=renderTab(c);document.getElementById('chatEnd')?.scrollIntoView({behavior:'smooth'});}}
 function renderTab(c){if(activeTab==='paste')return renderPasteTab(c);if(activeTab==='timeline')return renderTimelineTab(c);if(activeTab==='pending')return renderPendingTab(c);if(activeTab==='discuss')return renderDiscussTab(c);if(activeTab==='checklist')return renderCLTab(c);return'';}
 
+
+function renderInfoTab(c){
+  const isC=c.type==='complaint';
+  const pendCnt=(c.pending||[]).filter(p=>!p.confirmed).length;
+  const doneCnt=(c.pending||[]).filter(p=>p.confirmed).length;
+  const msgCnt=(c.messages||[]).filter(m=>m.role==='user').length;
+  const tlCnt=(c.timeline||[]).length;
+  // Checklist progress
+  const tpl=getClTpl();
+  const clDone=Object.values(c.checklistState||{}).filter(v=>v?.checked).length;
+  const clTotal=tpl.length;
+
+  if(isC) return`<div>
+    <div class="card" style="margin-bottom:8px">
+      <p style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">📌 案件基本資料</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px">
+        <span style="color:#94a3b8;padding:1px 0">不良現象</span><span style="color:#0f172a;font-weight:500">${esc(c.what||'—')}</span>
+        <span style="color:#94a3b8;padding:1px 0">客戶</span><span style="color:#0f172a">${esc(c.who||'—')}</span>
+        <span style="color:#94a3b8;padding:1px 0">產品型號</span><span style="color:#0f172a;font-size:12px">${esc(c.which||'—')}</span>
+        <span style="color:#94a3b8;padding:1px 0">DC</span><span style="color:#0f172a">${esc(c.when||'—')}</span>
+        <span style="color:#94a3b8;padding:1px 0">不良數量</span><span>${dcDisplay(c)} ${ppmStr(c)||''}</span>
+        <span style="color:#94a3b8;padding:1px 0">發現方式</span><span style="color:#0f172a">${esc(c.howDetected||'—')}</span>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:8px">
+      <p style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">⚠️ 風險批定義</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px">
+        <span style="color:#94a3b8">起始DC</span><span style="color:${c.riskBatch?.start?'#0f172a':'#dc2626'}">${c.riskBatch?.start||'⚠️ 未定義'}</span>
+        <span style="color:#94a3b8">結束DC</span><span style="color:#0f172a">${c.riskBatch?.end||'—'}</span>
+        <span style="color:#94a3b8">類型</span><span style="color:#0f172a">${c.riskBatch?.type==='continuous'?'連續性':'間歇性'}</span>
+        <span style="color:#94a3b8">處置</span><span style="color:#0f172a">${({hold:'暫停出貨',screen:'全數篩選',ship:'正常出貨'})[c.riskBatch?.action]||'—'}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px">
+      ${[['貼入記錄',msgCnt,'#1d4ed8'],['時程',tlCnt,'#7c3aed'],['待確認',pendCnt,'#dc2626'],['清單進度',clTotal?`${clDone}/${clTotal}`:'—','#16a34a']].map(([l,v,col])=>`
+        <div class="card" style="text-align:center;padding:10px;margin-bottom:0;border-color:${col}30">
+          <p style="font-size:18px;font-weight:700;color:${col};margin:0">${v}</p>
+          <p style="font-size:9px;color:#94a3b8;margin-top:2px">${l}</p>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-p" style="flex:1;justify-content:center;padding:9px;font-size:12px" onclick="switchTab('paste')">📥 貼入分析</button>
+      <button onclick="switchTab('discuss');customerView()" style="flex:1;padding:9px;font-size:12px;border:1.5px solid #0891b2;background:#f0f9ff;color:#0891b2;border-radius:8px;cursor:pointer;font-family:inherit">👁 客戶視野</button>
+    </div>
+  </div>`;
+
+  // For non-complaint types
+  return`<div><div class="card">
+    <p style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">📌 案件基本資料</p>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px">
+      ${c.type==='ipqc'?`
+        <span style="color:#94a3b8">缺失分類</span><span style="color:#0f172a;font-weight:500">${esc(c.defectCat||'—')}</span>
+        <span style="color:#94a3b8">站別</span><span style="color:#0f172a">${esc(c.station||'—')}</span>
+        <span style="color:#94a3b8">缺失項目</span><span style="color:#0f172a;font-size:12px">${esc(c.defectItem||'—')}</span>
+        <span style="color:#94a3b8">責任人</span><span style="color:#0f172a">${esc(c.owner||'—')}</span>
+        <span style="color:#94a3b8">是否再發</span><span style="color:${c.recurrence==='是'?'#dc2626':'#16a34a'};font-weight:500">${c.recurrence||'—'}</span>
+        <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
+      `:`
+        <span style="color:#94a3b8">產品</span><span style="color:#0f172a;font-weight:500">${esc(c.product||c.title||'—')}</span>
+        <span style="color:#94a3b8">期間</span><span style="color:#0f172a">${esc(c.period||c.batch||'—')}</span>
+      `}
+    </div>
+  </div>
+  <div style="margin-top:8px"><button class="btn-p" style="width:100%;justify-content:center;padding:9px;font-size:12px" onclick="switchTab('paste')">📥 貼入分析</button></div>
+  </div>`;
+}
 function renderPasteTab(c){
   const msgs=c.messages||[];
   return`<div>
