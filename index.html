@@ -92,7 +92,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.7';
+const BUILD='v3.8';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -606,7 +606,7 @@ function renderDashboard(){
         <i class="ti ti-arrow-right" style="font-size:14px;color:#94a3b8"></i>
       </div>
     </div>
-    <div class="card" style="cursor:pointer;margin-bottom:10px" onclick="navigate('yield')"><div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:10px"><i class="ti ti-chart-bar" style="font-size:18px;color:#16a34a"></i><div><p style="font-size:13px;font-weight:500;color:#0f172a;margin:0">良率分析</p><p style="font-size:10px;color:#94a3b8;margin-top:1px">趨勢監控・雙向原因記錄</p></div></div><i class="ti ti-arrow-right" style="font-size:14px;color:#94a3b8"></i></div></div>
+
     ${openAll.length?`<div class="card" style="border-left:3px solid #d97706"><p style="font-size:11px;font-weight:500;color:#64748b;margin-bottom:8px">⏰ 進行中案件</p>${openAll.slice(0,5).map(c=>{
   const typeLabel={complaint:'客訴',fqc1:'FQC1',fqc2:'FQC2',ipqc:'IPQC',yield:'良率'};
   const typeCol={complaint:'#dc2626',fqc1:'#d97706',fqc2:'#7c3aed',ipqc:'#0891b2',yield:'#16a34a'};
