@@ -73,7 +73,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
   <div class="hdr" id="hdr">
     <button id="btnBack" onclick="goBack()" style="display:none;border:none;background:none;padding:4px;cursor:pointer;color:#93c5fd"><i class="ti ti-arrow-left" style="font-size:20px"></i></button>
     <span class="hdr-title" id="hdrTitle">產線異常管理</span>
-    <span id="syncStatus" style="font-size:14px;margin-right:2px;cursor:pointer" onclick="manualSync()" title="點擊同步"></span><button onclick="screen='settings';renderSettings();updateHdr()" style="border:none;background:none;color:#93c5fd;padding:4px;cursor:pointer;font-size:16px">⚙</button><span class="build-tag">${BUILD}</span>
+    <span id="offlineTag" style="display:none;font-size:10px;background:#d97706;color:#fff;padding:2px 6px;border-radius:4px;margin-right:4px">離線</span><span id="syncStatus"  style="font-size:14px;margin-right:2px;cursor:pointer" onclick="manualSync()" title="點擊同步"></span><button onclick="screen='settings';renderSettings();updateHdr()" style="border:none;background:none;color:#93c5fd;padding:4px;cursor:pointer;font-size:16px">⚙</button><span class="build-tag">${BUILD}</span>
     <button id="btnAdd" style="display:none;border:none;background:none;padding:4px;cursor:pointer;color:#93c5fd"><i class="ti ti-plus" style="font-size:20px"></i></button>
   </div>
   <div class="content" id="content"></div>
@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v2.0';
+const BUILD='v2.3';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -121,7 +121,7 @@ async function sheetsPost(data) {
 }
 
 async function loadFromSheets() {
-  if (!SHEETS_URL) return false;
+  if (!SHEETS_URL || !navigator.onLine) return false;
   setSyncStatus('syncing');
   try{
     const result = await sheetsGet('load');
@@ -146,7 +146,7 @@ async function loadFromSheets() {
 }
 
 async function syncToSheets() {
-  if (!SHEETS_URL || cases.length === 0) return;
+  if (!SHEETS_URL || cases.length === 0 || !navigator.onLine) return;
   setSyncStatus('syncing');
   try{
     const result = await sheetsPost({ action: 'save', cases });
@@ -261,6 +261,22 @@ function promptSheetsUrl() {
     location.reload();
   }
 }
+
+// Offline detection
+function updateOnlineStatus(){
+  const tag=document.getElementById('offlineTag');
+  const sync=document.getElementById('syncStatus');
+  if(!navigator.onLine){
+    if(tag) tag.style.display='inline';
+    if(sync) sync.style.display='none';
+  } else {
+    if(tag) tag.style.display='none';
+    if(sync) sync.style.display='';
+  }
+}
+window.addEventListener('online', ()=>{updateOnlineStatus();manualSync();});
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -510,6 +526,17 @@ function renderDPanel(c,d){
 function dBarHTML(currentD,closed){return'<div class="dbar">'+DSTEPS.map(d=>{const idx=DSTEPS.indexOf(d),cur=DSTEPS.indexOf(currentD),done=closed||idx<cur,active=d===currentD&&!closed,selected=activeDPanel===d;return`<div class="dseg" style="background:${done?DCOL[d]:active?DCOL[d]+'28':'#f1f5f9'};border:${selected?`2px solid ${DCOL[d]}`:(active?`1.5px solid ${DCOL[d]}`:'1.5px solid transparent')};color:${done?'#fff':active?DCOL[d]:'#94a3b8'};cursor:pointer;outline:${selected?'2px solid white':''}" onclick="toggleDPanel('${d}')" title="點擊查看${d}內容">${d}</div>`;}).join('')+'</div>';}
 function statusBadge(c){if(c.closed)return'<span class="badge" style="background:#6b728020;color:#6b7280">已結案</span>';if(c.type==='fqc1'||c.type==='fqc2'||c.type==='ipqc'){const col=c.recurrence==='是'?'#dc2626':c.trackStatus==='closed'?'#16a34a':'#d97706';return`<span class="badge" style="background:${col}20;color:${col}">${c.type==='ipqc'&&c.recurrence==='是'?'⚠️再發':c.trackStatus==='closed'?'已結案':'追蹤中'}</span>`;}if(c.type==='yield'){const col=c.trend==='down'?'#dc2626':'#16a34a';return`<span class="badge" style="background:${col}18;color:${col}">${c.trend==='down'?'↓下降分析':'↑改善分析'}</span>`;}const col=DCOL[c.currentD]||'#94a3b8';return`<span class="badge" style="background:${col}20;color:${col}">${c.currentD} ${DLBLS[c.currentD]}</span>`;}
 function priBadge(p){const m={high:['#dc2626','高'],mid:['#d97706','中'],medium:['#d97706','中'],low:['#16a34a','低']};const[col,lbl]=m[p]||['#94a3b8','—'];return`<span class="badge" style="background:${col}18;color:${col};font-size:10px">${lbl}</span>`;}
+function dcDisplay(c){
+  const dc=c.when||c.riskBatch?.start||'-';
+  const d=parseFloat(c.defectCount);
+  const n=parseFloat(c.inputCount);
+  if(!isNaN(d)&&d>0&&!isNaN(n)&&n>0)
+    return`${dc}(${d}/${Number(n).toLocaleString()})`;
+  if(!isNaN(d)&&d>0)
+    return`${dc}(${d}pcs)`;
+  return dc;
+}
+
 function ppmStr(c){if(c.defectCount&&c.inputCount){const p=Math.round((parseFloat(c.defectCount)/parseFloat(c.inputCount))*1000000);return`<span style="color:${p>1000?'#dc2626':p>100?'#d97706':'#16a34a'};font-weight:500">${p.toLocaleString()} ppm</span>`;}return c.defectCount?c.defectCount+' pcs':'';}
 
 // ── Navigation ─────────────────────────────────────────────
@@ -568,7 +595,7 @@ function renderList(){
     <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:12px;padding:10px" onclick="screen='new';formStep=1;formData=emptyForm();fqcForm=emptyFqcForm();activeTab='paste';renderNew();updateHdr()">
       + 新增${activeModule==='complaint'?'客訴案件':activeModule==='fqc1'?'FQC1異常':'IPQC巡檢記錄'}
     </button>
-    ${list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-wrap:wrap;margin-top:4px"><span>${esc(c.who||c.product||'—')}</span><span>DC:${esc(c.when||'—')}</span>${ppmStr(c)?`<span>${ppmStr(c)}</span>`:''}<span style="margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}</div></div>`).join('')}`;
+    ${list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-wrap:wrap;margin-top:4px"><span>${esc(c.who||c.product||'—')}</span><span style="color:#334155">${dcDisplay(c)}</span>${ppmStr(c)?`<span style="margin-left:4px">${ppmStr(c)}</span>`:''}<span style="margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}</div></div>`).join('')}`;
 }
 
 // ── New Case ───────────────────────────────────────────────
@@ -593,7 +620,10 @@ function renderStep1(){
     <div class="field"><label class="lbl">How Many — 不良數量</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><div><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:3px">不良數(pcs)</label><input class="inp" id="f_defectCount" placeholder="12" oninput="calcPPM()"/></div><div><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:3px">投入數(pcs)</label><input class="inp" id="f_inputCount" placeholder="50000（選填）" oninput="calcPPM()"/></div><div><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:3px">PPM</label><div id="ppmD" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:500;color:#7c3aed;text-align:center">—</div></div></div></div>
     ${fld('How Detected — 發現方式','howDetected','例：FA / SMT / IPQC')}
     <div id="s1err" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#dc2626"></div>
-    <button class="btn-p" style="width:100%;justify-content:center;padding:10px" onclick="step1Next()">下一步：定義風險批 →</button>`;
+    <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn-g" style="flex:1;justify-content:center" onclick="goBack()">← 返回清單</button>
+    <button class="btn-p" style="flex:2;justify-content:center;padding:10px" onclick="step1Next()">下一步：定義風險批 →</button>
+  </div>`;
 }
 
 function calcPPM(){const dRaw=document.getElementById('f_defectCount')?.value||'';const nRaw=document.getElementById('f_inputCount')?.value||'';const d=parseFloat(dRaw),n=parseFloat(nRaw),el=document.getElementById('ppmD');if(!el)return;if(!isNaN(d)&&!isNaN(n)&&n>0){const p=Math.round((d/n)*1e6);el.textContent=p.toLocaleString()+' ppm';el.style.color=p>1000?'#dc2626':p>100?'#d97706':'#16a34a';}else if(!isNaN(d)&&d>0){el.textContent=d+' pcs';el.style.color='#64748b';}else{el.textContent='—';el.style.color='#94a3b8';}}
@@ -730,7 +760,7 @@ function renderDetail(doScroll=true){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0;line-height:1.4">${esc(c.what||c.anomalyType)}</p>${statusBadge(c)}</div>
       ${isC?dBarHTML(c.currentD,c.closed):''}${isC&&activeDPanel?renderDPanel(c,activeDPanel):''}
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px">
-        <p style="font-size:10px;color:#94a3b8;margin:0">${isC?`${esc(c.who)}・DC${esc(c.when)}・${c.riskBatch?.start?'風險批DC'+c.riskBatch.start+'～'+c.riskBatch.end:'⚠️風險批未定義'}${ppmStr(c)?' · '+ppmStr(c):''}`:c.type==='ipqc'?`${esc(c.defectCat||'')}・${esc(c.station||'')}・${esc(c.wk||'')}・${c.recurrence==='是'?'⚠️已再發':''}`:esc(c.period||c.product+'・'+c.batch)}</p>
+        <p style="font-size:10px;color:#94a3b8;margin:0">${isC?`${esc(c.who)}・${dcDisplay(c)}${ppmStr(c)?' · '+ppmStr(c):''}`:c.type==='ipqc'?`${esc(c.defectCat||'')}・${esc(c.station||'')}・${esc(c.wk||'')}・${c.recurrence==='是'?'⚠️已再發':''}`:esc(c.period||c.product+'・'+c.batch)}</p>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
         ${isC&&!c.closed&&c.currentD!=='D8'?`<button class="btn-g btn-sm" onclick="advD()">推進 ${DSTEPS[DSTEPS.indexOf(c.currentD)+1]} →</button>`:''}
         ${isC?`<button onclick="switchTab('discuss');customerView()" style="padding:4px 9px;font-size:11px;border:1px solid #0891b2;background:#f0f9ff;color:#0891b2;border-radius:8px;cursor:pointer">👁 客戶視野</button>`:''}
