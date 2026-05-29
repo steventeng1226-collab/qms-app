@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v1.6';
+const BUILD='v1.7';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -514,7 +514,7 @@ function renderStep1(){
     <button class="btn-p" style="width:100%;justify-content:center;padding:10px" onclick="step1Next()">下一步：定義風險批 →</button>`;
 }
 
-function calcPPM(){const d=parseFloat(document.getElementById('f_defectCount')?.value)||0,n=parseFloat(document.getElementById('f_inputCount')?.value)||0,el=document.getElementById('ppmD');if(!el)return;if(d>0&&n>0){const p=Math.round((d/n)*1e6);el.textContent=p.toLocaleString()+' ppm';el.style.color=p>1000?'#dc2626':p>100?'#d97706':'#16a34a';}else if(d>0){el.textContent=d+' pcs';el.style.color='#64748b';}else{el.textContent='—';el.style.color='#94a3b8';}}
+function calcPPM(){const dRaw=document.getElementById('f_defectCount')?.value||'';const nRaw=document.getElementById('f_inputCount')?.value||'';const d=parseFloat(dRaw),n=parseFloat(nRaw),el=document.getElementById('ppmD');if(!el)return;if(!isNaN(d)&&!isNaN(n)&&n>0){const p=Math.round((d/n)*1e6);el.textContent=p.toLocaleString()+' ppm';el.style.color=p>1000?'#dc2626':p>100?'#d97706':'#16a34a';}else if(!isNaN(d)&&d>0){el.textContent=d+' pcs';el.style.color='#64748b';}else{el.textContent='—';el.style.color='#94a3b8';}}
 
 async function autoFill(){
   const email=document.getElementById('emailPaste').value.trim();if(!email)return;
