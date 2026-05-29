@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v1.7';
+const BUILD='v1.8';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -123,18 +123,26 @@ async function sheetsPost(data) {
 async function loadFromSheets() {
   if (!SHEETS_URL) return false;
   setSyncStatus('syncing');
-  const result = await sheetsGet('load');
-  if (result && result.cases) {
-    // Merge: prefer newer by lastModified or createdAt
-    const sheetIds = new Set(result.cases.map(c => c.id));
-    const localOnly = cases.filter(c => !sheetIds.has(c.id));
-    cases = [...result.cases, ...localOnly];
-    save(false); // save to localStorage without re-syncing
-    setSyncStatus('ok');
-    return true;
+  try{
+    const result = await sheetsGet('load');
+    if (result && Array.isArray(result.cases)) {
+      if(result.cases.length > 0){
+        // Sheets data WINS - replace local completely
+        // Only keep local cases that don't exist in Sheets yet (truly new, not yet synced)
+        const sheetIds = new Set(result.cases.map(c => c.id));
+        const newLocalOnly = cases.filter(c => !sheetIds.has(c.id) && c.createdAt > (result.ts - 10000));
+        cases = [...result.cases, ...newLocalOnly];
+      }
+      save(false);
+      setSyncStatus('ok');
+      return true;
+    }
+    setSyncStatus('error');
+    return false;
+  }catch(e){
+    setSyncStatus('error');
+    return false;
   }
-  setSyncStatus('error');
-  return false;
 }
 
 async function syncToSheets() {
@@ -148,10 +156,33 @@ async function manualSync() {
   setSyncStatus('syncing');
   const pulled = await loadFromSheets();
   if (pulled) {
-    renderDashboard();
-    // Also push local-only cases
-    await syncToSheets();
+    const cur = screen;
+    if(cur==='dashboard') renderDashboard();
+    else if(cur==='list') renderList();
+    else if(cur==='fqc') renderFQC();
+    else if(cur==='stats') renderStats();
+    setSyncStatus('ok');
   }
+}
+
+async function forceRefreshFromSheets(){
+  if(!confirm('從Google Sheets完全重新載入資料？\n本機資料將被Sheets覆蓋。')) return;
+  setSyncStatus('syncing');
+  try{
+    const result = await sheetsGet('load');
+    if(result && Array.isArray(result.cases)){
+      cases = result.cases;
+      save(false);
+      setSyncStatus('ok');
+      renderDashboard();
+      screen='dashboard';
+      updateHdr();
+      alert('✅ 已從Google Sheets完全重新載入 '+cases.length+' 筆資料');
+    }else{
+      setSyncStatus('error');
+      alert('⚠️ 無法從Sheets載入資料');
+    }
+  }catch(e){setSyncStatus('error');alert('⚠️ 連線失敗：'+e.message);}
 }
 
 function schedulSync() {
@@ -456,7 +487,7 @@ function renderDashboard(){
         <div style="display:flex;gap:6px;align-items:center">
         <span style="font-size:10px;color:#94a3b8;background:#f1f5f9;padding:2px 6px;border-radius:4px">${BUILD}</span>
         <button onclick="promptSheetsUrl()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid ${SHEETS_URL?'#16a34a':'#cbd5e1'};background:${SHEETS_URL?'#f0fdf4':'#fff'};color:${SHEETS_URL?'#16a34a':'#64748b'};cursor:pointer" title="${SHEETS_URL?'Google Sheets已連接':'點擊設定Google Sheets'}">${SHEETS_URL?'☁ 已連接':'☁ 設定同步'}</button>
-        ${SHEETS_URL?`<button onclick="manualSync()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer" title="從Google Sheets重新載入最新資料">⟳ 同步</button>`:''}
+        ${SHEETS_URL?`<button onclick="manualSync()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer" title="同步">⟳ 同步</button> <button onclick="forceRefreshFromSheets()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #dc2626;background:#fef2f2;color:#dc2626;cursor:pointer" title="從Sheets完全重新載入">↓ 強制載入</button>`:''}
       </div>
       </div>
       ${openAll.length?`<p style="font-size:12px;color:#d97706;margin-top:6px">⚠️ ${openAll.length} 件進行中</p>`:'<p style="font-size:12px;color:#16a34a;margin-top:6px">✓ 目前無進行中案件</p>'}
