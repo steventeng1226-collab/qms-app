@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>品質管理</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0f2744"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="品質管理"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:flex;justify-content:center;padding:8px;min-height:100vh}
+.app{width:100%;max-width:430px;display:flex;flex-direction:column;min-height:100vh}
+.hdr{background:#0f2744;padding:0 14px;height:52px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:20}
+.hdr-title{flex:1;font-size:15px;font-weight:500;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.build-tag{font-size:10px;color:#94a3b8;background:#1e3a5f;padding:2px 6px;border-radius:4px;flex-shrink:0}
+.content{flex:1;padding:10px;padding-bottom:68px}
+.bnav{background:#fff;border-top:1px solid #e2e8f0;display:flex;height:56px;position:fixed;bottom:0;width:100%;max-width:430px;z-index:20}
+.navbtn{flex:1;border:none;background:none;padding:5px 2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:9px;color:#94a3b8;border-top:2px solid transparent;font-family:inherit}
+.navbtn.active{color:#1d4ed8;border-top-color:#1d4ed8}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.btn-p{border:none;background:#1d4ed8;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;display:inline-flex;align-items:center;gap:4px}
+.btn-p:disabled{opacity:0.35;cursor:not-allowed}
+.btn-g{border:1px solid #cbd5e1;background:#fff;color:#334155;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;display:inline-flex;align-items:center;gap:4px}
+.btn-sm{padding:4px 9px;font-size:11px}
+.inp{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;background:#fff;color:#0f172a;font-size:13px;font-family:inherit}
+.inp:focus{outline:none;border-color:#1d4ed8}
+.lbl{font-size:11px;color:#64748b;display:block;margin-bottom:4px;font-weight:500}
+.field{margin-bottom:11px}
+.badge{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500}
+.tab-bar{display:flex;border-bottom:1px solid #e2e8f0;background:#fff;position:sticky;top:52px;z-index:10}
+.tab-btn{flex:1;padding:8px 2px;text-align:center;font-size:10px;font-weight:500;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;color:#94a3b8;font-family:inherit}
+.tab-btn.active{color:#1d4ed8;border-bottom-color:#1d4ed8}
+.chat-ai{background:#fff;border:1px solid #e2e8f0;border-radius:10px 10px 10px 3px;padding:10px 12px;font-size:13px;line-height:1.7;color:#0f172a;max-width:92%}
+.chat-user{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px 10px 3px 10px;padding:10px 12px;font-size:13px;line-height:1.7;color:#1e3a8a;max-width:92%}
+.chat-meta{font-size:10px;color:#94a3b8;margin-top:3px}
+.dbar{display:flex;gap:3px;margin:8px 0 6px}
+.dseg{flex:1;padding:3px 1px;border-radius:4px;text-align:center;font-size:8px;font-weight:700;border:1.5px solid transparent}
+.pulse{width:6px;height:6px;border-radius:50%;background:#1d4ed8;animation:pulse 1s infinite;display:inline-block;margin-right:5px}
+.tl-item{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #f8fafc}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:#1d4ed8;margin-top:4px;flex-shrink:0}
+.pd-item{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f8fafc;cursor:pointer}
+.pd-chk{width:20px;height:20px;border-radius:5px;border:1.5px solid #cbd5e1;flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.pd-chk.done{background:#16a34a;border-color:#16a34a}
+.cl-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #f8fafc;cursor:pointer;transition:opacity .2s}
+.cl-item.done{opacity:0.38}
+.cl-chk{width:20px;height:20px;border-radius:5px;border:1.5px solid #cbd5e1;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.cl-chk.done{background:#16a34a;border-color:#16a34a}
+.cl-cat{font-size:11px;font-weight:600;color:#64748b;margin:12px 0 4px;padding:4px 8px;background:#f8fafc;border-radius:4px}
+.photo-grid{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.photo-thumb{position:relative;cursor:pointer}
+.photo-thumb img{width:64px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0}
+.photo-rm{position:absolute;top:-3px;right:-3px;width:15px;height:15px;border-radius:50%;background:#dc2626;border:none;color:#fff;font-size:8px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.img-prev{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.img-thumb{position:relative}
+.img-thumb img{width:56px;height:46px;object-fit:cover;border-radius:5px}
+.img-rm2{position:absolute;top:-3px;right:-3px;width:14px;height:14px;border-radius:50%;background:#dc2626;border:none;color:#fff;font-size:8px;cursor:pointer}
+.step-tab{flex:1;padding:8px 4px;text-align:center;font-size:11px;font-weight:500;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;font-family:inherit;color:#94a3b8}
+.step-tab.active{color:#1d4ed8;border-bottom-color:#1d4ed8}
+.risk-opt{display:block;width:100%;text-align:left;margin-bottom:6px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;transition:all .1s}
+.info-tip{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:11px;color:#0284c7;margin-bottom:8px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+/* Icon fallbacks */
+.ti::before{font-family:'tabler-icons'!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr" id="hdr">
+    <button id="btnBack" onclick="goBack()" style="display:none;border:none;background:none;padding:4px;cursor:pointer;color:#93c5fd"><i class="ti ti-arrow-left" style="font-size:20px"></i></button>
+    <span class="hdr-title" id="hdrTitle">產線異常管理</span>
+    <span id="syncStatus" style="font-size:14px;margin-right:6px;cursor:pointer" onclick="syncToSheets()" title="點擊立即同步"></span><span class="build-tag">${BUILD}</span>
+    <button id="btnAdd" style="display:none;border:none;background:none;padding:4px;cursor:pointer;color:#93c5fd"><i class="ti ti-plus" style="font-size:20px"></i></button>
+  </div>
+  <div class="content" id="content"></div>
+  <nav class="bnav">
+    <button class="navbtn active" id="nav-dashboard" onclick="navigate('dashboard')"><i class="ti ti-home" style="font-size:18px"></i><span>主控台</span></button>
+    <button class="navbtn" id="nav-complaint" onclick="navigate('complaint')"><i class="ti ti-bell" style="font-size:18px"></i><span>客訴</span></button>
+    <button class="navbtn" id="nav-fqc1" onclick="fqcTab='fqc1';navigate('fqc1')"><i class="ti ti-eye" style="font-size:18px"></i><span>FQC1</span></button>
+    <button class="navbtn" id="nav-ipqc" onclick="navigate('ipqc')"><i class="ti ti-refresh" style="font-size:18px"></i><span>IPQC</span></button>
+    <button class="navbtn" id="nav-yield" onclick="navigate('yield')"><i class="ti ti-chart-bar" style="font-size:18px"></i><span>良率</span></button>
+  </nav>
+</div>
+<input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
+<input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
+<script>
+const BUILD='v1.0';
+
+// ═══════════════════════════════════════════════
+// GOOGLE SHEETS SYNC
+// 部署Apps Script後填入URL
+// ═══════════════════════════════════════════════
+const SHEETS_URL = localStorage.getItem('qms_sheets_url') || 'https://script.google.com/macros/s/AKfycbxGROwcw5ZPIhG6qDap3fMcmTEf3jjEcBPiK-JBVK-Y9JoLQTp0ms1FT5bh4-wbk_Qh/exec';
+let syncTimer = null;
+let syncStatus = 'idle'; // idle | syncing | ok | error
+
+async function sheetsGet(action) {
+  if (!SHEETS_URL) return null;
+  try {
+    const r = await fetch(SHEETS_URL + '?action=' + action + '&t=' + Date.now());
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+async function sheetsPost(data) {
+  if (!SHEETS_URL) return null;
+  try {
+    const r = await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+async function loadFromSheets() {
+  if (!SHEETS_URL) return false;
+  setSyncStatus('syncing');
+  const result = await sheetsGet('load');
+  if (result && result.cases) {
+    // Merge: prefer newer by lastModified or createdAt
+    const sheetIds = new Set(result.cases.map(c => c.id));
+    const localOnly = cases.filter(c => !sheetIds.has(c.id));
+    cases = [...result.cases, ...localOnly];
+    save(false); // save to localStorage without re-syncing
+    setSyncStatus('ok');
+    return true;
+  }
+  setSyncStatus('error');
+  return false;
+}
+
+async function syncToSheets() {
+  if (!SHEETS_URL || cases.length === 0) return;
+  setSyncStatus('syncing');
+  const result = await sheetsPost({ action: 'save', cases });
+  setSyncStatus(result && result.saved !== undefined ? 'ok' : 'error');
+}
+
+function schedulSync() {
+  if (!SHEETS_URL) return;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncToSheets, 2000);
+}
+
+function setSyncStatus(s) {
+  syncStatus = s;
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const map = {idle:'', syncing:'⟳', ok:'✓', error:'⚠'};
+  const col = {idle:'#64748b', syncing:'#60a5fa', ok:'#4ade80', error:'#f87171'};
+  el.textContent = map[s] || '';
+  el.style.color = col[s] || '#64748b';
+  el.title = s === 'ok' ? '已同步 Google Sheets' : s === 'error' ? '同步失敗' : s === 'syncing' ? '同步中...' : '';
+}
+
+function promptSheetsUrl() {
+  const url = prompt('請輸入 Google Apps Script Web App URL：\n（部署後從Apps Script取得）', SHEETS_URL);
+  if (url && url.startsWith('https://')) {
+    localStorage.setItem('qms_sheets_url', url);
+    location.reload();
+  }
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+const DSTEPS=['D1','D2','D3','D4','D5','D6','D7','D8'];
+const DLBLS={D1:'成立小組',D2:'問題描述',D3:'暫時對策',D4:'真因分析',D5:'永久對策',D6:'執行驗證',D7:'預防再發',D8:'結案確認'};
+
+const D_DESC={
+  D1:{tasks:['確認跨功能小組成員','指定8D負責人','確認案件緊急程度'],expect:'小組名單與分工'},
+  D2:{tasks:['5W2H完整問題描述','確認風險批範圍','盤點庫存與在途'],expect:'問題描述文件與風險批定義'},
+  D3:{tasks:['暫時遏制措施執行','確認客戶端已隔離','留底樣品綁定DC/LC'],expect:'不良品已停止流出'},
+  D4:{tasks:['4M1E分析','5-Why追問','根因驗證：可再現+排除後消失'],expect:'確認根因（有驗證數據）'},
+  D5:{tasks:['針對根因制定永久對策','防錯機制設計','確認對策有效性'],expect:'永久對策方案'},
+  D6:{tasks:['執行永久對策','驗證對策效果','確認良率/不良率改善'],expect:'對策效果驗證數據'},
+  D7:{tasks:['更新FMEA/CP/SOP','水平展開至相似製程','預防措施導入'],expect:'制度化防再發措施'},
+  D8:{tasks:['確認客戶滿意','完整8D報告歸檔','經驗知識庫記錄'],expect:'客戶確認結案'},
+};
+let activeDPanel=null; // which D is showing panel
+
+const DCOL={D1:'#94a3b8',D2:'#3b82f6',D3:'#d97706',D4:'#7c3aed',D5:'#dc2626',D6:'#0891b2',D7:'#16a34a',D8:'#1e3a8a'};
+const PHOTO_LABELS=['不良品外觀','顯微鏡照','截面分析','EDX報告','對照良品','客戶提供','其他'];
+const DEFAULT_CL=[
+  {id:'CL01',cat:'客戶端',item:'客戶端風險品已隔離（停線/停用）'},
+  {id:'CL02',cat:'客戶端',item:'客戶庫存數量確認'},
+  {id:'CL03',cat:'客戶端',item:'在制品（已組裝）數量確認'},
+  {id:'CL04',cat:'客戶端',item:'換貨/補貨數量與時程安排'},
+  {id:'CL05',cat:'客戶端',item:'客戶線體斷線風險確認'},
+  {id:'CL06',cat:'客戶端',item:'不良品寄回廠分析'},
+  {id:'CL07',cat:'客戶端',item:'客戶焊接條件/製程參數確認'},
+  {id:'CL08',cat:'客戶端',item:'客戶後續使用狀況了解'},
+  {id:'CL09',cat:'客戶端',item:'客戶EDX/FA報告取得'},
+  {id:'CL10',cat:'廠內端',item:'風險批範圍定義（起點/終點/連續或間歇）'},
+  {id:'CL11',cat:'廠內端',item:'廠內庫存盤點完成'},
+  {id:'CL12',cat:'廠內端',item:'WIP（在製品）確認'},
+  {id:'CL13',cat:'廠內端',item:'HUB倉/在途庫存確認'},
+  {id:'CL14',cat:'廠內端',item:'留底樣品取得（DC/LC綁定）'},
+  {id:'CL15',cat:'廠內端',item:'外觀分析完成'},
+  {id:'CL16',cat:'廠內端',item:'EDX分析安排'},
+  {id:'CL17',cat:'廠內端',item:'外檢機100%導入確認'},
+  {id:'CL18',cat:'廠內端',item:'水平展開評估'},
+];
+
+// ── State ─────────────────────────────────────────────────
+let screen='dashboard',activeModule='complaint',curId=null;
+// Demo case pre-loaded
+const DEMO_CASE={"id": "DEMO_QUANTA_001", "type": "complaint", "createdAt": 1775520000000, "currentD": "D8", "closed": true, "what": "空焊（烘烤堆疊導致爐後鼓裂，端子被頂起）", "where": "客戶SMT I11線 AOI站/ICT站", "when": "2604", "which": "MAT-06CZE1R5M-V1-CY", "who": "上海廣達", "defectCount": "26", "inputCount": "3000", "howDetected": "ICT/AOI檢測", "riskBatch": {"start": "2604", "end": "2614", "type": "intermittent", "action": "hold"}, "photos": [], "checklistState": {"CL01": "confirmed", "CL02": "confirmed", "CL03": "confirmed", "CL04": "confirmed", "CL06": "confirmed", "CL10": "confirmed", "CL11": "confirmed", "CL13": "confirmed", "CL14": "confirmed", "CL15": "confirmed", "CL16": "confirmed", "CL17": "confirmed", "CL18": "confirmed"}, "timeline": [{"d": "4/7", "e": "廣達反映SMT I11線空焊，DC2604共12pcs（0.6%）", "s": "客訴", "ts": 1775520000000}, {"d": "4/9", "e": "D3暫時對策：異常DC2604清倉36211pcs退HUB，短期切換昆山工廠生產", "s": "內部", "ts": 1775692800000}, {"d": "4/10", "e": "客退樣品收到，外觀分析發現樣品正面及底部均有不同程度鼓裂", "s": "分析", "ts": 1775779200000}, {"d": "4/14", "e": "HUB風險批隔離完成：DC2605*64K、2606*12K、2609*17K、2610*82K、2614*33K", "s": "圍堵", "ts": 1776124800000}, {"d": "4/15", "e": "D4根因確認：發生原因=烘烤堆疊擺放；流出原因=爐溫空板測量", "s": "根因", "ts": 1776211200000}, {"d": "4/15", "e": "D5永久對策執行：鐵盤改鋁盤單顆排序、感溫線連同產品過爐、爐溫曲線調整", "s": "對策", "ts": 1776211200000}, {"d": "4/15", "e": "驗證通過：不堆疊4000pcs全Pass；堆疊+新爐溫→有鼓裂被偵測（有效）", "s": "驗證", "ts": 1776211200000}, {"d": "4/16", "e": "水平展開：昆山廠17款車規料號全面稽核，對比FMEA/CP/SOP差異", "s": "水平展開", "ts": 1776297600000}, {"d": "4/20", "e": "客戶確認接受8D報告，案件結案", "s": "結案", "ts": 1776643200000}], "pending": [{"id": "PD001", "item": "確認東莞廠269K產品重過IR後外檢結果", "owner": "工程/劉誠", "priority": "high", "confirmed": true, "result": "完成，269K全數重新過IR外檢Pass", "ts": 1775952000000}, {"id": "PD002", "item": "昆山生產73K優先供貨廣達", "owner": "業務/詹智涵", "priority": "high", "confirmed": true, "result": "已於4/15交貨", "ts": 1776211200000}, {"id": "PD003", "item": "越南廠爐溫曲線更新確認", "owner": "製造/余發林", "priority": "high", "confirmed": true, "result": "Peak溫度222→247℃，217℃以上時間31→89sec", "ts": 1776211200000}], "aiAssessment": "根因已確認：\n1.【發生原因】烘烤堆疊擺放→受熱不均→濕氣未除→reflow時鼓裂→端子被頂起→空焊\n2.【流出原因】爐溫用空板測量→實際爐溫不足→鼓裂未被偵測\n\n對策系統性且有效，5-Why邏輯完整，驗證數據充分。水平展開涵蓋昆山廠17款車規料號。", "aiDiscussion": [{"role": "assistant", "content": "📊 根因評估更新：\n\n✅ 發生根因確認：烘烤堆疊→受熱不均→鼓裂→空焊\n✅ 流出根因確認：爐溫空板測量→實際溫度不足→未偵測\n✅ 對策具體且防錯性強（鋁盤物理防止堆疊）\n✅ 驗證設計完整（正向+反向雙重驗證）\n\n📌 結案評估：此案根因清楚、對策有效、驗證完整，可結案。", "ts": 1776643200000}], "messages": [{"role": "assistant", "content": "📋 客訴Email · 廣達上海空焊，DC2604/2605，26pcs\n\n【分析】\n✅ 客戶：上海廣達，SMT I11線AOI/ICT檢測\n✅ 不良現象：空焊，外觀確認鼓裂，端子高度超規（2.90-2.93→3.02-3.17mm）\n✅ 問題DC：2604（0.6%）、2605（1.4%）\n❓ 鼓裂機制尚待確認（烘烤問題？材料問題？）\n⚠️ 風險批範圍廣：DC2604-2614共364K pcs\n\n📌 現在最需要確認：樣品送回後的切片分析結果", "ts": 1775606400000, "dStep": "D2"}, {"role": "assistant", "content": "📋 分析報告 · 外觀+尺寸+EDX+切片分析完成\n\n【分析】\n✅ 外觀確認：1#~6#樣品均有鼓裂\n✅ 尺寸確認：不良品高度3.02~3.17mm（正常2.90~2.93mm），超規\n✅ EDX確認：端子表面C/O含量高，疑似透明膠污染（但非主要原因）\n✅ 切片確認：A面和C面均有鼓起，機制明確\n✅ 根因聚焦：烘烤堆疊→受熱不均→鼓裂\n❓ 流出原因待確認：爐溫測量方式問題\n\n📌 現在最需要確認：爐溫測量方式（空板vs產品）的差異數據", "ts": 1775865600000, "dStep": "D4"}, {"role": "assistant", "content": "📋 根因確認 · 5-Why完成，再現性驗證Pass\n\n【分析】\n✅ 5-Why（發生）：堆疊→受熱不均→濕氣殘留→reflow鼓裂→端子頂起→空焊\n✅ 5-Why（流出）：空板測爐溫→實際溫度不足→鼓裂未暴露→流出\n✅ 再現性驗證：不堆疊4000pcs全Pass；堆疊+新爐溫→4pcs鼓裂（可再現）\n✅ 對策有效性：新爐溫可偵測到鼓裂（流出對策有效）\n⚠️ 水平展開：昆山廠17款車規料號需全面稽核\n\n📌 現在最需要確認：水平展開稽核結果（昆山廠FMEA/CP/SOP差異）", "ts": 1776211200000, "dStep": "D5"}]};
+let _storedCases=JSON.parse(localStorage.getItem('qms_cases')||'[]');
+// Add demo case if not already present
+if(!_storedCases.find(c=>c.id==='DEMO_QUANTA_001')){_storedCases.unshift(DEMO_CASE);}
+let cases=_storedCases;
+let activeTab='paste',formStep=1,formData=emptyForm(),fqcForm=emptyFqcForm();
+let pasteImgs=[],isLoading=false,photoLabel='不良品外觀';
+
+function save(scheduleSync=true){localStorage.setItem('qms_cases',JSON.stringify(cases));if(scheduleSync)schedulSync();}
+function genId(){return(activeModule==='fqc1'?'F':'C')+Date.now().toString(36).toUpperCase();}
+function fmt(ts){if(!ts)return'';const d=new Date(ts);return`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+function getCur(){return cases.find(c=>c.id===curId);}
+function casesByMod(m){return cases.filter(c=>c.type===m);}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function nl2br(s){return esc(s).replace(/\n/g,'<br/>');}
+function emptyForm(){return{what:'',where:'',when:'',which:'',who:'',defectCount:'',inputCount:'',howDetected:'',riskStart:'',riskEnd:'',riskType:'continuous',riskAction:'hold'};}
+function emptyFqcForm(){return{wk:'',date:'',series:'',product:'',batch:'',anomalyType:'',anomalyDetail:'',owner:'',inspCount:'',defectCount:'',defectRate:'',handling:'重檢'};}
+function getClTpl(){try{const d=localStorage.getItem('qms_cl_tpl');return d?JSON.parse(d):DEFAULT_CL;}catch{return DEFAULT_CL;}}
+function saveClTpl(t){localStorage.setItem('qms_cl_tpl',JSON.stringify(t));}
+
+// ── API: Two-step paste analysis ──────────────────────────
+const ANALYSIS_SYS='你是YAGEO越南廠品保顧問。用繁體中文條列式回應，禁止使用JSON格式。格式：\n【分析】每點1行（✅確認 ❓待確認 ⚠️風險），最多8點\n【時程】每點「MM/DD：事件」，最多5點\n【行動】每點「事項 → 負責人」，最多6點\n【📌最需確認】一件具體的事\n如果對策是宣導/訓練/疏忽，加⚠️提醒：換新員工這問題還會發生嗎？';
+const STRUCT_SYS='從分析文字提取結構化資料，只輸出JSON：{"tl":[{"d":"MM/DD","e":"事件"}],"pd":[{"i":"待確認項目","o":"負責人","p":"high/mid/low"}],"aa":"根因一句話","fl":["wc","ct","ra","es"]}。最多5筆tl和pd。fl含義：wc=宣導訓練疏忽，ct=數據矛盾，ra=庫存風險，es=升級。';
+
+const CUSTOMER_VIEW_SYS=`你現在扮演客戶（廣達上海）的SQE/品保工程師，正在審查供應商YAGEO越南廠提交的8D報告。
+
+你的審查職責：
+1. 根因是否有說服力（有無再現性驗證數據？）
+2. 對策是否能真正防再發（系統性防錯？還是只是宣導訓練？）
+3. 流出原因是否也被解決
+4. 水平展開是否完整（相似製程/產品是否都已確認？）
+5. 後續批次的驗證計劃是否清楚
+6. 你是否接受這份報告，還是要求補充什麼
+
+審查標準（嚴格）：
+• 根因必須有可再現驗證（能製造出不良 + 對策後消失）
+• 「人員宣導/教育訓練」不是系統性對策，要求改用防錯機制
+• 風險批需完整定義，庫存/在途/已出貨都要有交代
+• 水平展開要列出具體確認清單，不能只說「已通知相關單位」
+
+輸出格式（繁體中文）：
+【客戶整體評估】接受/有條件接受/不接受 + 一句話說明
+【可接受的部分】✅ 列點
+【有疑問的部分】❓ 列點，每點附「我要求補充：xxx」
+【風險提醒】⚠️ 站在客戶角度的風險判斷
+【下一步要求】具體列出我作為客戶接下來會要求什麼`;
+
+const DISCUSS_SYS='你是品保顧問。D4根因未確認前禁止討論D5對策。「宣導/訓練」類對策必須反問：換新員工還會發生嗎？使用繁體中文，每段不超過3行，結尾必須有📌最需確認。';
+
+async function apiCall(sys,msgs,maxTok){
+  const r=await fetch("https://api.anthropic.com/v1/messages",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTok,system:sys,messages:msgs})});
+  const d=await r.json();
+  return(d.content?.[0]?.text||'').trim();
+}
+
+async function callPaste(text,imgs,ctx){
+  const info=ctx?'\n【案件】'+ctx.what+'|'+ctx.who+'|DC:'+ctx.when:'';
+  const msgContent=imgs&&imgs.length
+    ?[{type:'text',text:text||'請分析圖片'},...imgs.map(i=>{const p=i.split(',');return{type:'image',source:{type:'base64',media_type:p[0].split(':')[1].split(';')[0],data:p[1]}};})]
+    :(text||'');
+  // Step 1: plain text analysis
+  const analysisText=await apiCall(ANALYSIS_SYS+info,[{role:'user',content:msgContent}],1200);
+  // Step 2: silent JSON extraction
+  let tl=[],pd=[],aa='',flags=[];
+  try{
+    const raw=await apiCall(STRUCT_SYS,[{role:'user',content:analysisText}],600);
+    function tryJ(s){try{return JSON.parse(s);}catch(e){return null;}}
+    const j=tryJ(raw)||(()=>{const a=raw.indexOf('{'),b=raw.lastIndexOf('}');return a>=0&&b>a?tryJ(raw.slice(a,b+1)):null;})();
+    if(j){tl=j.tl||[];pd=j.pd||[];aa=j.aa||'';flags=j.fl||[];}
+  }catch(e){}
+  return{analysisText,tl,pd,aa,flags};
+}
+
+async function callDiscuss(msgs,ctx){
+  const info=ctx?'\n【案件】'+ctx.what+'|'+ctx.who+'|DC:'+ctx.when+'|進度:'+(ctx.currentD||'D1'):'';
+  return apiCall(DISCUSS_SYS+info,msgs,1000);
+}
+
+// ── Image handling ─────────────────────────────────────────
+document.addEventListener('paste',e=>{
+  if(screen!=='detail')return;
+  Array.from(e.clipboardData?.items||[]).forEach(item=>{
+    if(item.type.startsWith('image/')){
+      const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{pasteImgs.push(d);renderPrev();});
+      r.readAsDataURL(item.getAsFile());}});});
+function handleFile(e){Array.from(e.target.files||[]).forEach(f=>{const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{pasteImgs.push(d);renderPrev();});r.readAsDataURL(f);});e.target.value='';}
+function compress(dataUrl,cb){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const MAX=600;let w=img.width,h=img.height;if(w>MAX){h=h*(MAX/w);w=MAX;}if(h>MAX){w=w*(MAX/h);h=MAX;}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',0.7));};img.src=dataUrl;}
+function renderPrev(){const el=document.getElementById('imgPreview');if(!el)return;el.innerHTML=pasteImgs.map((img,i)=>`<div class="img-thumb"><img src="${img}"/><button class="img-rm2" onclick="rmImg(${i})">×</button></div>`).join('');el.style.display=pasteImgs.length?'flex':'none';}
+function rmImg(i){pasteImgs.splice(i,1);renderPrev();}
+function handlePhoto(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{const c=getCur();if(!c)return;c.photos=[...(c.photos||[]),{data:d,label:photoLabel,ts:Date.now()}];save();renderDetail();});r.readAsDataURL(f);e.target.value='';}
+
+// ── D Bar ──────────────────────────────────────────────────
+
+function toggleDPanel(d){
+  activeDPanel=activeDPanel===d?null:d;
+  renderDetail(false);}
+
+function setD(d){
+  const c=getCur();if(!c||c.closed)return;
+  if(c.currentD===d)return;
+  if(!confirm('確定要將進度調整為 '+d+'（'+DLBLS[d]+'）？'))return;
+  c.currentD=d;activeDPanel=null;save();renderDetail(false);}
+
+function renderDPanel(c,d){
+  if(!d||!D_DESC[d])return'';
+  const desc=D_DESC[d];
+  const col=DCOL[d]||'#94a3b8';
+  // Get messages tagged to this D-step
+  const relMsgs=(c.messages||[]).filter(m=>m.dStep===d&&m.role==='assistant');
+  const isActive=c.currentD===d&&!c.closed;
+  const isDone=!c.closed&&DSTEPS.indexOf(c.currentD)>DSTEPS.indexOf(d);
+  return`<div style="background:${col}10;border:1.5px solid ${col}40;border-radius:10px;padding:12px 14px;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div>
+        <span style="font-size:14px;font-weight:600;color:${col}">${d}</span>
+        <span style="font-size:13px;color:#0f172a;margin-left:6px">${DLBLS[d]}</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        ${isDone?'<span style="font-size:10px;color:#16a34a;background:#f0fdf4;padding:2px 7px;border-radius:9999px">✓已完成</span>':isActive?`<span style="font-size:10px;color:${col};background:${col}15;padding:2px 7px;border-radius:9999px">進行中</span>`:''}
+        ${!c.closed&&!isActive?`<button class="btn-g" style="padding:3px 9px;font-size:11px" onclick="setD('${d}')">切換至此步驟</button>`:''}
+        <button onclick="activeDPanel=null;renderDetail()" style="border:none;background:none;font-size:16px;cursor:pointer;color:#94a3b8">×</button>
+      </div>
+    </div>
+    <div style="margin-bottom:8px">
+      <p style="font-size:11px;font-weight:500;color:#64748b;margin-bottom:5px">本步驟應完成：</p>
+      ${desc.tasks.map(t=>`<p style="font-size:12px;color:#334155;line-height:1.6;margin:0">▸ ${t}</p>`).join('')}
+      <p style="font-size:11px;color:#64748b;margin-top:5px">📄 交付物：${desc.expect}</p>
+    </div>
+    ${relMsgs.length>0?`<div style="border-top:1px solid ${col}30;padding-top:8px;margin-top:8px">
+      <p style="font-size:11px;font-weight:500;color:#64748b;margin-bottom:5px">此步驟相關記錄（${relMsgs.length}筆）：</p>
+      ${relMsgs.slice(-3).map(m=>`<div style="background:rgba(255,255,255,0.7);border-radius:6px;padding:7px 10px;margin-bottom:5px;font-size:12px;color:#334155;line-height:1.5">${nl2br(m.content.slice(0,120)+(m.content.length>120?'...':''))}<span style="font-size:10px;color:#94a3b8;margin-left:6px">${fmt(m.ts)}</span></div>`).join('')}
+    </div>`:`<p style="font-size:12px;color:#94a3b8;text-align:center;padding:6px 0">此步驟尚無記錄</p>`}
+  </div>`;}
+function dBarHTML(currentD,closed){return'<div class="dbar">'+DSTEPS.map(d=>{const idx=DSTEPS.indexOf(d),cur=DSTEPS.indexOf(currentD),done=closed||idx<cur,active=d===currentD&&!closed,selected=activeDPanel===d;return`<div class="dseg" style="background:${done?DCOL[d]:active?DCOL[d]+'28':'#f1f5f9'};border:${selected?`2px solid ${DCOL[d]}`:(active?`1.5px solid ${DCOL[d]}`:'1.5px solid transparent')};color:${done?'#fff':active?DCOL[d]:'#94a3b8'};cursor:pointer;outline:${selected?'2px solid white':''}" onclick="toggleDPanel('${d}')" title="點擊查看${d}內容">${d}</div>`;}).join('')+'</div>';}
+function statusBadge(c){if(c.closed)return'<span class="badge" style="background:#6b728020;color:#6b7280">已結案</span>';if(c.type==='fqc1'||c.type==='fqc2'||c.type==='ipqc'){const col=c.recurrence==='是'?'#dc2626':c.trackStatus==='closed'?'#16a34a':'#d97706';return`<span class="badge" style="background:${col}20;color:${col}">${c.type==='ipqc'&&c.recurrence==='是'?'⚠️再發':c.trackStatus==='closed'?'已結案':'追蹤中'}</span>`;}if(c.type==='yield'){const col=c.trend==='down'?'#dc2626':'#16a34a';return`<span class="badge" style="background:${col}18;color:${col}">${c.trend==='down'?'↓下降分析':'↑改善分析'}</span>`;}const col=DCOL[c.currentD]||'#94a3b8';return`<span class="badge" style="background:${col}20;color:${col}">${c.currentD} ${DLBLS[c.currentD]}</span>`;}
+function priBadge(p){const m={high:['#dc2626','高'],mid:['#d97706','中'],medium:['#d97706','中'],low:['#16a34a','低']};const[col,lbl]=m[p]||['#94a3b8','—'];return`<span class="badge" style="background:${col}18;color:${col};font-size:10px">${lbl}</span>`;}
+function ppmStr(c){if(c.defectCount&&c.inputCount){const p=Math.round((parseFloat(c.defectCount)/parseFloat(c.inputCount))*1000000);return`<span style="color:${p>1000?'#dc2626':p>100?'#d97706':'#16a34a'};font-weight:500">${p.toLocaleString()} ppm</span>`;}return c.defectCount?c.defectCount+' pcs':'';}
+
+// ── Navigation ─────────────────────────────────────────────
+function navigate(mod){document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));(document.getElementById('nav-'+mod)||document.getElementById('nav-dashboard')).classList.add('active');activeModule=mod;if(mod==='dashboard'){screen='dashboard';renderDashboard();}else if(mod==='complaint'){screen='list';renderList();}else if(mod==='fqc1'){screen='fqc';renderFQC();}else if(mod==='ipqc'){screen='list';renderList();}else if(mod==='yield'){screen='yield';renderYield();}else{screen='placeholder';renderPlaceholder();}updateHdr();}
+function goBack(){if(screen==='detail'||screen==='new'){if(activeModule==='fqc1'||activeModule==='fqc2'){fqcTab=activeModule;screen='fqc';renderFQC();}else{screen='list';renderList();}}else{screen='dashboard';renderDashboard();}updateHdr();}
+function openCase(id){const c=cases.find(x=>x.id===id);if(!c)return;curId=id;activeModule=c.type;if(c.type==='fqc2')fqcTab='fqc2';else if(c.type==='fqc1')fqcTab='fqc1';screen='detail';activeTab='paste';renderDetail();updateHdr();document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));const navId=c.type==='fqc2'||c.type==='fqc1'?'nav-fqc1':'nav-'+c.type;(document.getElementById(navId)||document.getElementById('nav-complaint')).classList.add('active');}
+function updateHdr(){
+  const t=document.getElementById('hdrTitle'),back=document.getElementById('btnBack'),add=document.getElementById('btnAdd');
+  const titles={dashboard:'產線異常管理',list:activeModule==='complaint'?'客訴案件':'IPQC 巡檢',fqc:'FQC 異常記錄',yield:'良率分析',placeholder:'開發中',new:activeModule==='complaint'?`新增客訴 ${formStep}/2`:activeModule==='ipqc'?'新增IPQC':activeModule==='fqc2'?'新增FQC2':'新增FQC1'};
+  if(screen==='detail'){t.textContent=(getCur()?.what||getCur()?.anomalyType||'案件').slice(0,18);}else t.textContent=titles[screen]||'產線異常管理';
+  back.style.display=screen!=='dashboard'?'flex':'none';
+  add.style.display=screen==='list'?'block':'none';
+  document.getElementById('btnAdd').onclick=screen==='list'?()=>{screen='new';formStep=1;formData=emptyForm();fqcForm=emptyFqcForm();activeTab='paste';renderNew();updateHdr();}:null;}
+
+// ── Dashboard ──────────────────────────────────────────────
+function renderDashboard(){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-dashboard').classList.add('active');
+  const openAll=cases.filter(c=>!c.closed);
+  const mods=[{id:'complaint',label:'客訴',icon:'ti-bell',urgent:true},{id:'fqc1',label:'FQC 外觀/測包',icon:'ti-eye',combinedWith:'fqc2'},{id:'fqc2',label:'FQC2 測包',icon:'ti-box'},{id:'ipqc',label:'IPQC 巡檢',icon:'ti-refresh'}];
+  document.getElementById('content').innerHTML=`
+    <div class="card" style="border-left:3px solid #3b82f6;margin-bottom:12px">
+      <p style="font-size:11px;color:#64748b">YAGEO Vietnam</p>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <p style="font-size:17px;font-weight:500;color:#0f172a;margin-top:3px">產線異常管理</p>
+        <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;color:#94a3b8;background:#f1f5f9;padding:2px 6px;border-radius:4px">${BUILD}</span>
+        <button onclick="promptSheetsUrl()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid ${SHEETS_URL?'#16a34a':'#cbd5e1'};background:${SHEETS_URL?'#f0fdf4':'#fff'};color:${SHEETS_URL?'#16a34a':'#64748b'};cursor:pointer" title="${SHEETS_URL?'Google Sheets已連接':'點擊設定Google Sheets'}">${SHEETS_URL?'☁ 已連接':'☁ 設定同步'}</button>
+      </div>
+      </div>
+      ${openAll.length?`<p style="font-size:12px;color:#d97706;margin-top:6px">⚠️ ${openAll.length} 件進行中</p>`:'<p style="font-size:12px;color:#16a34a;margin-top:6px">✓ 目前無進行中案件</p>'}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px">
+      ${mods.map(m=>{const open=(casesByMod(m.id).length+(m.combinedWith?casesByMod(m.combinedWith).length:0)>0)?casesByMod(m.id).filter(c=>!c.closed).length+(m.combinedWith?casesByMod(m.combinedWith).filter(c=>!c.closed).length:0):0,total=casesByMod(m.id).length+(m.combinedWith?casesByMod(m.combinedWith).length:0);const col=m.urgent&&open>0?'#dc2626':'#d97706';return`<div class="card" style="cursor:pointer;margin-bottom:0" onclick="navigate('${m.id}')"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><i class="ti ${m.icon}" style="font-size:18px;color:${open>0&&m.urgent?'#dc2626':'#94a3b8'}"></i>${open>0?`<span class="badge" style="background:${col}18;color:${col}">${open}件</span>`:''}</div><p style="font-size:13px;font-weight:500;color:#0f172a;margin:0">${m.label}</p><p style="font-size:10px;color:#94a3b8;margin-top:2px">${total===0?'無案件':`共${total}件・${open}進行中`}</p></div>`;}).join('')}
+    </div>
+    <div class="card" style="cursor:pointer;margin-bottom:10px" onclick="navigate('yield')"><div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:10px"><i class="ti ti-chart-bar" style="font-size:18px;color:#16a34a"></i><div><p style="font-size:13px;font-weight:500;color:#0f172a;margin:0">良率分析</p><p style="font-size:10px;color:#94a3b8;margin-top:1px">趨勢監控・雙向原因記錄</p></div></div><i class="ti ti-arrow-right" style="font-size:14px;color:#94a3b8"></i></div></div>
+    ${openAll.length?`<div class="card" style="border-left:3px solid #d97706"><p style="font-size:11px;font-weight:500;color:#64748b;margin-bottom:8px">⏰ 進行中案件</p>${openAll.slice(0,5).map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f1f5f9;cursor:pointer" onclick="openCase('${c.id}')"><div style="flex:1;min-width:0;margin-right:8px"><p style="margin:0;font-size:13px;font-weight:500;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.what||c.anomalyType||'（未填）')}</p><p style="margin:1px 0 0;font-size:10px;color:#94a3b8">${esc(c.who||c.product||'—')}・${new Date(c.createdAt).toLocaleDateString('zh-TW')}</p></div>${statusBadge(c)}</div>`).join('')}</div>`:''}`;
+}
+
+// ── Case List ──────────────────────────────────────────────
+function renderList(){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  (document.getElementById('nav-'+activeModule)||document.getElementById('nav-complaint')).classList.add('active');
+  const list=casesByMod(activeModule);
+  document.getElementById('content').innerHTML=`
+    <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:12px;padding:10px" onclick="screen='new';formStep=1;formData=emptyForm();fqcForm=emptyFqcForm();activeTab='paste';renderNew();updateHdr()">
+      + 新增${activeModule==='complaint'?'客訴案件':activeModule==='fqc1'?'FQC1異常':'IPQC巡檢記錄'}
+    </button>
+    ${list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-wrap:wrap;margin-top:4px"><span>${esc(c.who||c.product||'—')}</span><span>DC:${esc(c.when||'—')}</span>${ppmStr(c)?`<span>${ppmStr(c)}</span>`:''}<span style="margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}</div></div>`).join('')}`;
+}
+
+// ── New Case ───────────────────────────────────────────────
+function renderNew(){if(activeModule==='fqc1'||activeModule==='fqc2'){renderNewFqc();return;}if(activeModule==='ipqc'){renderNewIpqc();return;}if(formStep===1)renderStep1();else renderStep2();}
+function fld(lbl,key,ph,multi=false){return`<div class="field"><label class="lbl">${lbl}</label>${multi?`<textarea class="inp" id="f_${key}" rows="2" style="resize:none" placeholder="${ph}"></textarea>`:`<input class="inp" id="f_${key}" placeholder="${ph}"/>`}</div>`;}
+
+function renderStep1(){
+  document.getElementById('content').innerHTML=`
+    <div style="display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:12px"><button class="step-tab active">1. 5W2H 問題描述</button><button class="step-tab">2. 風險批定義</button></div>
+    <div class="card info-tip" style="margin-bottom:12px">
+      <strong>📧 快速填寫：貼入Email自動解析</strong>
+      <textarea id="emailPaste" class="inp" rows="3" style="resize:none;font-size:12px;margin-top:6px" placeholder="將客訴email文字貼入此處..."></textarea>
+      <button class="btn-p" style="width:100%;justify-content:center;margin-top:6px;padding:8px;font-size:12px" id="autoBtn" onclick="autoFill()">✨ AI自動解析填寫</button>
+      <div id="autoMsg" style="font-size:11px;margin-top:4px;display:none"></div>
+    </div>
+    <p style="font-size:11px;color:#94a3b8;text-align:center;margin-bottom:10px">— 或手動填寫 —</p>
+    ${fld('What — 不良現象 *','what','例：空焊、外觀裂紋',true)}
+    ${fld('Where — 在哪發現','where','例：客戶SMT線 / FQC1')}
+    ${fld('When — DC *','when','例：2604')}
+    ${fld('Which — 產品型號 *','which','例：MAT-06CZE1R5M-V1-CY')}
+    ${fld('Who — 客戶 *','who','例：廣達')}
+    <div class="field"><label class="lbl">How Many — 不良數量</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><div><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:3px">不良數(pcs)</label><input class="inp" id="f_defectCount" placeholder="12" oninput="calcPPM()"/></div><div><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:3px">投入數(pcs)</label><input class="inp" id="f_inputCount" placeholder="50000（選填）" oninput="calcPPM()"/></div><div><label style="font-size:10px;color:#94a3b8;display:block;margin-bottom:3px">PPM</label><div id="ppmD" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:500;color:#7c3aed;text-align:center">—</div></div></div></div>
+    ${fld('How Detected — 發現方式','howDetected','例：FA / SMT / IPQC')}
+    <div id="s1err" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#dc2626"></div>
+    <button class="btn-p" style="width:100%;justify-content:center;padding:10px" onclick="step1Next()">下一步：定義風險批 →</button>`;
+}
+
+function calcPPM(){const d=parseFloat(document.getElementById('f_defectCount')?.value)||0,n=parseFloat(document.getElementById('f_inputCount')?.value)||0,el=document.getElementById('ppmD');if(!el)return;if(d>0&&n>0){const p=Math.round((d/n)*1e6);el.textContent=p.toLocaleString()+' ppm';el.style.color=p>1000?'#dc2626':p>100?'#d97706':'#16a34a';}else if(d>0){el.textContent=d+' pcs';el.style.color='#64748b';}else{el.textContent='—';el.style.color='#94a3b8';}}
+
+async function autoFill(){
+  const email=document.getElementById('emailPaste').value.trim();if(!email)return;
+  const btn=document.getElementById('autoBtn'),msg=document.getElementById('autoMsg');
+  btn.disabled=true;btn.textContent='解析中...';msg.style.display='block';msg.style.color='#0284c7';msg.textContent='AI正在解析...';
+  try{
+    const raw=await apiCall('從email提取資訊，只輸出JSON：{"what":"不良現象","where":"發現地點","when":"DC數字","which":"產品型號","who":"客戶名稱","defectCount":"不良數字","inputCount":"投入數字","howDetected":"發現方式"}',[{role:'user',content:email}],300);
+    function tryJ(s){try{return JSON.parse(s);}catch{return null;}}
+    const j=tryJ(raw)||(()=>{const a=raw.indexOf('{'),b=raw.lastIndexOf('}');return a>=0&&b>a?tryJ(raw.slice(a,b+1)):null;})();
+    if(j){let n=0;Object.entries(j).forEach(([k,v])=>{if(v&&v!=='未知'){formData[k]=v;const el=document.getElementById('f_'+k);if(el){el.value=v;el.style.borderColor='#16a34a';n++;}}});msg.style.color='#16a34a';msg.textContent='✅ 已填寫'+n+'個欄位，請確認後繼續';}
+    else{msg.style.color='#dc2626';msg.textContent='⚠️ 解析失敗，請手動填寫';}
+  }catch(e){msg.style.color='#dc2626';msg.textContent='⚠️ 連線失敗';}
+  btn.disabled=false;btn.textContent='✨ AI自動解析填寫';}
+
+function step1Next(){
+  ['what','where','when','which','who','howDetected'].forEach(k=>{const el=document.getElementById('f_'+k);if(el)formData[k]=el.value.trim();});
+  formData.defectCount=document.getElementById('f_defectCount')?.value.trim()||'';
+  formData.inputCount=document.getElementById('f_inputCount')?.value.trim()||'';
+  const miss=[];if(!formData.what)miss.push('What（不良現象）');if(!formData.when)miss.push('When（DC）');if(!formData.which)miss.push('Which（產品型號）');if(!formData.who)miss.push('Who（客戶）');
+  if(miss.length){const el=document.getElementById('s1err');el.style.display='block';el.textContent='⚠️ 必填：'+miss.join('・');return;}
+  formStep=2;renderStep2();updateHdr();}
+
+function renderStep2(){
+  const r=formData;
+  document.getElementById('content').innerHTML=`
+    <div style="display:flex;border-bottom:1px solid #e2e8f0;margin-bottom:12px"><button class="step-tab" onclick="formStep=1;renderStep1();updateHdr()">1. 5W2H 問題描述</button><button class="step-tab active">2. 風險批定義</button></div>
+    <div class="card" style="background:#fffbeb;border-color:#fde68a;margin-bottom:12px"><p style="font-size:12px;color:#d97706;font-weight:500">⚠️ 建議盡快填寫風險批，也可先跳過案件建立後補填</p></div>
+    <div class="field"><label class="lbl">風險批起始 DC（可先跳過）</label><input class="inp" id="f_rS" value="${r.riskStart}" placeholder="例：2604"/></div>
+    <div class="field"><label class="lbl">風險批結束 DC（可先跳過）</label><input class="inp" id="f_rE" value="${r.riskEnd}" placeholder="例：2614"/></div>
+    <div class="field"><label class="lbl">不良類型</label><div style="display:flex;gap:8px">${['continuous','intermittent'].map((v,i)=>`<button onclick="formData.riskType='${v}';renderStep2()" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;border:${r.riskType===v?`1.5px solid ${v==='continuous'?'#dc2626':'#d97706'}`:'1px solid #cbd5e1'};background:${r.riskType===v?v==='continuous'?'#fef2f2':'#fffbeb':'#fff'};color:${r.riskType===v?v==='continuous'?'#dc2626':'#d97706':'#64748b'}">${['連續性','間歇性'][i]}</button>`).join('')}</div></div>
+    <div class="field"><label class="lbl">暫定處置方式</label>${[{v:'hold',l:'暫停出貨（高風險）',c:'#dc2626'},{v:'screen',l:'全數篩選後出貨',c:'#d97706'},{v:'ship',l:'正常出貨（低風險）',c:'#16a34a'}].map(o=>`<button class="risk-opt" onclick="formData.riskAction='${o.v}';renderStep2()" style="border:${r.riskAction===o.v?`1.5px solid ${o.c}`:'1px solid #e2e8f0'};background:${r.riskAction===o.v?o.c+'15':'#fff'};color:${r.riskAction===o.v?o.c:'#64748b'};font-weight:${r.riskAction===o.v?500:400}">${o.l}</button>`).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:4px"><button class="btn-g" style="flex:1;justify-content:center" onclick="formStep=1;renderStep1();updateHdr()">← 上一步</button><button class="btn-p" style="flex:2;justify-content:center;padding:10px" onclick="submitComplaint()">建立案件並開始分析</button></div>`;}
+
+async function submitComplaint(){
+  formData.riskStart=document.getElementById('f_rS')?.value.trim()||'';
+  formData.riskEnd=document.getElementById('f_rE')?.value.trim()||'';
+  const nc={id:genId(),type:'complaint',createdAt:Date.now(),currentD:'D1',closed:false,what:formData.what,where:formData.where,when:formData.when,which:formData.which,who:formData.who,defectCount:formData.defectCount,inputCount:formData.inputCount,howDetected:formData.howDetected,riskBatch:{start:formData.riskStart,end:formData.riskEnd,type:formData.riskType,action:formData.riskAction},photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
+  cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='paste';renderDetail();updateHdr();
+  const pStr=nc.defectCount&&nc.inputCount?Math.round((parseFloat(nc.defectCount)/parseFloat(nc.inputCount))*1e6)+' ppm':nc.defectCount?nc.defectCount+' pcs':'未知';
+  const rStr=nc.riskBatch.start?`風險批DC${nc.riskBatch.start}～${nc.riskBatch.end}`:'風險批未定義';
+  await doPaste('新案件：'+nc.what+' | '+nc.who+' | DC'+nc.when+' | '+nc.which+' | 不良'+pStr+' | '+rStr,[],nc);}
+
+function renderNewFqc(){
+  const f=fqcForm;
+  const isFqc2=activeModule==='fqc2';
+  document.getElementById('content').innerHTML=`
+    <div class="card info-tip" style="margin-bottom:12px">
+      <strong>📋 快速填寫：貼入Excel列自動解析</strong>
+      <textarea id="ipPaste" class="inp" rows="3" style="resize:none;font-size:12px;margin-top:6px" placeholder="複製Excel中一列IPQC記錄貼入此處..."></textarea>
+      <button class="btn-p" style="width:100%;justify-content:center;margin-top:6px;padding:8px;font-size:12px" id="ipAutoBtn" onclick="ipqcAutoFill()">✨ AI自動解析填寫</button>
+      <div id="ipAutoMsg" style="font-size:11px;margin-top:4px;display:none"></div>
+    </div>
+    <p style="font-size:11px;color:#94a3b8;text-align:center;margin-bottom:10px">— 或手動填寫 —</p>
+    <div class="card" style="background:#fffbeb;border-color:#fde68a;margin-bottom:12px">
+      <p style="font-size:12px;color:#d97706;font-weight:500">${isFqc2?'FQC2 測包異常':'FQC1 外觀異常'}・連續5批無再發可結案</p>
+    </div>
+    <div class="card info-tip" style="margin-bottom:12px">
+      <strong>📋 快速填寫：貼入Excel列自動解析</strong>
+      <textarea id="fqcPaste" class="inp" rows="3" style="resize:none;font-size:12px;margin-top:6px" placeholder="複製Excel中一列記錄貼入此處，AI自動填寫..."></textarea>
+      <button class="btn-p" style="width:100%;justify-content:center;margin-top:6px;padding:8px;font-size:12px" id="fqcAutoBtn" onclick="fqcAutoFill()">✨ AI自動解析填寫</button>
+      <div id="fqcAutoMsg" style="font-size:11px;margin-top:4px;display:none"></div>
+    </div>
+    <p style="font-size:11px;color:#94a3b8;text-align:center;margin-bottom:10px">— 或手動填寫 —</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px">
+      <div><label class="lbl">WK週次</label><input class="inp" id="ff_wk" value="${esc(f.wk)}" placeholder="WK18"/></div>
+      <div><label class="lbl">日期</label><input class="inp" id="ff_date" type="date" value="${f.date}"/></div>
+    </div>
+    <div class="field"><label class="lbl">參照/系列</label><input class="inp" id="ff_series" value="${esc(f.series)}" placeholder="T850/06"/></div>
+    <div class="field"><label class="lbl">產品料號 *</label><input class="inp" id="ff_product" value="${esc(f.product)}" placeholder="MAT-06CZE80NM-R1-CY"/></div>
+    <div class="field"><label class="lbl">批次 LC</label><input class="inp" id="ff_batch" value="${esc(f.batch)}" placeholder="DK6302CA00"/></div>
+    <div class="field"><label class="lbl">異常項目 *</label><input class="inp" id="ff_anomalyType" value="${esc(f.anomalyType)}" placeholder="${isFqc2?'測試失敗/包裝不良':'料片翹歪 / 外觀不良'}"/></div>
+    <div class="field"><label class="lbl">異常說明</label><textarea class="inp" id="ff_detail" rows="2" style="resize:none" placeholder="詳細描述...">${esc(f.anomalyDetail)}</textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:11px">
+      <div><label class="lbl">抽檢數</label><input class="inp" id="ff_insp" value="${esc(f.inspCount)}" placeholder="500"/></div>
+      <div><label class="lbl">不良數</label><input class="inp" id="ff_def" value="${esc(f.defectCount)}" placeholder="1"/></div>
+      <div><label class="lbl">不良率%</label><input class="inp" id="ff_rate" value="${esc(f.defectRate)}" placeholder="0.2"/></div>
+    </div>
+    <div class="field"><label class="lbl">處理結果</label><div style="display:flex;gap:6px">${['重檢','報廢','特采'].map(v=>`<button onclick="fqcForm.handling='${v}';renderNewFqc()" style="flex:1;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;border:${f.handling===v?'1.5px solid #1d4ed8':'1px solid #cbd5e1'};background:${f.handling===v?'#eff6ff':'#fff'};color:${f.handling===v?'#1d4ed8':'#64748b'}">${v}</button>`).join('')}</div></div>
+    <div class="field"><label class="lbl">責任人</label><input class="inp" id="ff_owner" value="${esc(f.owner)}" placeholder="姓名"/></div>
+    <div class="field"><label class="lbl">原因分析</label><textarea class="inp" id="ff_cause" rows="2" style="resize:none" placeholder="初步原因...">${esc(f.rootCause||'')}</textarea></div>
+    <div class="field"><label class="lbl">改善對策</label><textarea class="inp" id="ff_action" rows="2" style="resize:none" placeholder="改善措施...">${esc(f.countermeasure||'')}</textarea></div>
+    <div style="display:flex;gap:8px;margin-bottom:11px">
+      <div style="flex:1"><label class="lbl">完成日期</label><input class="inp" id="ff_due" type="date" value="${f.dueDate||''}"/></div>
+      <div style="flex:1"><label class="lbl">是否再發</label><div style="display:flex;gap:6px;margin-top:4px">${['否','是'].map(v=>`<button onclick="fqcForm.recurrence='${v}';renderNewFqc()" style="flex:1;padding:7px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;border:${f.recurrence===v?`1.5px solid ${v==='是'?'#dc2626':'#16a34a'}`:'1px solid #cbd5e1'};background:${f.recurrence===v?v==='是'?'#fef2f2':'#f0fdf4':'#fff'};color:${f.recurrence===v?v==='是'?'#dc2626':'#16a34a':'#64748b'}">${v}</button>`).join('')}</div></div>
+    </div>
+    <button class="btn-p" style="width:100%;justify-content:center;padding:10px" onclick="submitFqc()">建立${isFqc2?'FQC2':'FQC1'}記錄並分析</button>`;}
+
+async function fqcAutoFill(){
+  const text=document.getElementById('fqcPaste')?.value.trim();if(!text)return;
+  const btn=document.getElementById('fqcAutoBtn'),msg=document.getElementById('fqcAutoMsg');
+  btn.disabled=true;btn.textContent='解析中...';msg.style.display='block';msg.style.color='#0284c7';msg.textContent='AI解析中...';
+  try{
+    const raw=await apiCall(FQC_FILL_SYS,[{role:'user',content:text}],400);
+    function tryJ(s){try{return JSON.parse(s);}catch{return null;}}
+    const j=tryJ(raw)||(()=>{const a=raw.indexOf('{'),b=raw.lastIndexOf('}');return a>=0&&b>a?tryJ(raw.slice(a,b+1)):null;})();
+    if(j){
+      const map={wk:'ff_wk',date:'ff_date',series:'ff_series',product:'ff_product',batch:'ff_batch',anomalyType:'ff_anomalyType',anomalyDetail:'ff_detail',owner:'ff_owner',inspCount:'ff_insp',defectCount:'ff_def',defectRate:'ff_rate',rootCause:'ff_cause',countermeasure:'ff_action',dueDate:'ff_due'};
+      let n=0;
+      Object.entries(j).forEach(([k,v])=>{
+        if(v&&v!=='未知'&&v!=='null'){
+          if(k==='handling'&&['重檢','報廢','特采'].includes(v)){fqcForm.handling=v;n++;}
+          else if(k==='recurrence'&&['是','否'].includes(v)){fqcForm.recurrence=v;n++;}
+          else if(map[k]){const el=document.getElementById(map[k]);if(el){el.value=v;el.style.borderColor='#16a34a';n++;}}
+        }});
+      msg.style.color='#16a34a';msg.textContent='✅ 已填寫'+n+'個欄位，請確認後提交';
+      document.getElementById('fqcPaste').value='';
+      if(j.handling)renderNewFqc();
+    }else{msg.style.color='#dc2626';msg.textContent='⚠️ 解析失敗，請手動填寫';}
+  }catch(e){msg.style.color='#dc2626';msg.textContent='⚠️ 連線失敗';}
+  btn.disabled=false;btn.textContent='✨ AI自動解析填寫';}
+
+
+async function submitFqc(){
+  const g=k=>document.getElementById('ff_'+k)?.value.trim()||'';
+  Object.assign(fqcForm,{wk:g('wk'),date:g('date'),series:g('series'),product:g('product'),batch:g('batch'),anomalyType:g('anomalyType'),anomalyDetail:document.getElementById('ff_detail')?.value.trim()||'',inspCount:g('insp'),defectCount:g('def'),defectRate:g('rate'),owner:g('owner')});
+  if(!fqcForm.product||!fqcForm.anomalyType){alert('請填寫產品料號和異常項目');return;}
+  const nc={id:genId(),type:activeModule==='fqc2'?'fqc2':'fqc1',createdAt:Date.now(),closed:false,trackStatus:'tracking',wk:fqcForm.wk,date:fqcForm.date,series:fqcForm.series,product:fqcForm.product,batch:fqcForm.batch,anomalyType:fqcForm.anomalyType,anomalyDetail:fqcForm.anomalyDetail,owner:fqcForm.owner,inspCount:fqcForm.inspCount,defectCount:fqcForm.defectCount,defectRate:fqcForm.defectRate,handling:fqcForm.handling,rootCause:document.getElementById('ff_cause')?.value.trim()||'',countermeasure:document.getElementById('ff_action')?.value.trim()||'',recurrence:fqcForm.recurrence||'否',photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
+  cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='paste';renderDetail();updateHdr();
+  const fqcWeakCm=nc.countermeasure&&/宣導|訓練|教育|注意|提醒|培訓/.test(nc.countermeasure);await doPaste((nc.type==='fqc2'?'FQC2':'FQC1')+'異常：'+nc.anomalyType+' | '+nc.product+' | '+nc.batch+' | 抽'+nc.inspCount+'不良'+nc.defectCount+' | 處理：'+nc.handling+(nc.rootCause?' | 原因：'+nc.rootCause:'')+(nc.countermeasure?' | 對策：'+nc.countermeasure:'')+(nc.recurrence==='是'?' | ⚠️已再發':''),[],nc);}
+
+// ── Case Detail ────────────────────────────────────────────
+function renderDetail(doScroll=true){
+  const c=getCur();if(!c)return;
+  const isC=c.type==='complaint';const isY=c.type==='yield';
+  const actMap={hold:'暫停出貨',screen:'全數篩選',ship:'正常出貨'};
+  const pendCnt=(c.pending||[]).filter(p=>!p.confirmed).length;
+  const photosHtml=(c.photos||[]).length?`<div style="margin-top:8px"><p style="font-size:11px;color:#64748b;margin-bottom:5px">📷 不良照片庫（${c.photos.length}張）</p><div class="photo-grid">${c.photos.map((p,i)=>`<div class="photo-thumb" onclick="viewPhoto(${i})"><img src="${p.data}" title="${p.label}"/><button class="photo-rm" onclick="event.stopPropagation();rmPhoto(${i})">×</button><p style="font-size:8px;color:#64748b;text-align:center;margin-top:2px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.label)}</p></div>`).join('')}<div style="width:64px;height:54px;border:1px dashed #cbd5e1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px" onclick="addPhoto()"><span style="font-size:14px;color:#94a3b8">+</span><span style="font-size:8px;color:#94a3b8">新增</span></div></div></div>`:`<button class="btn-g btn-sm" style="margin-top:8px" onclick="addPhoto()">📷 上傳不良照片</button>`;
+
+  document.getElementById('content').innerHTML=`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0;line-height:1.4">${esc(c.what||c.anomalyType)}</p>${statusBadge(c)}</div>
+      ${isC?dBarHTML(c.currentD,c.closed):''}${isC&&activeDPanel?renderDPanel(c,activeDPanel):''}
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px">
+        <p style="font-size:10px;color:#94a3b8;margin:0">${isC?`${esc(c.who)}・DC${esc(c.when)}・${c.riskBatch?.start?'風險批DC'+c.riskBatch.start+'～'+c.riskBatch.end:'⚠️風險批未定義'}${ppmStr(c)?' · '+ppmStr(c):''}`:c.type==='ipqc'?`${esc(c.defectCat||'')}・${esc(c.station||'')}・${esc(c.wk||'')}・${c.recurrence==='是'?'⚠️已再發':''}`:esc(c.period||c.product+'・'+c.batch)}</p>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${isC&&!c.closed&&c.currentD!=='D8'?`<button class="btn-g btn-sm" onclick="advD()">推進 ${DSTEPS[DSTEPS.indexOf(c.currentD)+1]} →</button>`:''}
+        ${isC?`<button onclick="switchTab('discuss');customerView()" style="padding:4px 9px;font-size:11px;border:1px solid #0891b2;background:#f0f9ff;color:#0891b2;border-radius:8px;cursor:pointer">👁 客戶視野</button>`:''}
+      </div>
+      </div>
+      ${photosHtml}
+    </div>
+    <div class="tab-bar">
+      <button id="tab_paste" class="tab-btn ${activeTab==='paste'?'active':''}" onclick="switchTab('paste')">📥<br>貼入</button>
+      <button id="tab_timeline" class="tab-btn ${activeTab==='timeline'?'active':''}" onclick="switchTab('timeline')">${(c.timeline||[]).length?'🕐':'⏱'}<br>時程${(c.timeline||[]).length?'('+c.timeline.length+')':''}</button>
+      <button id="tab_pending" class="tab-btn ${activeTab==='pending'?'active':''}" onclick="switchTab('pending')">${pendCnt?'❓':'✓'}<br><span style="${pendCnt?'color:#dc2626':''}">待確認${pendCnt?'('+pendCnt+')':''}</span></button>
+      <button id="tab_discuss" class="tab-btn ${activeTab==='discuss'?'active':''}" onclick="switchTab('discuss')">🤖<br>AI評估</button>
+      ${isC?`<button id="tab_checklist" class="tab-btn ${activeTab==='checklist'?'active':''}" onclick="switchTab('checklist')">✅<br>清單</button>`:''}
+    </div>
+    <div id="tabContent" style="margin-top:8px">${renderTab(c)}</div>`;
+  if(doScroll)document.getElementById('chatEnd')?.scrollIntoView({behavior:'smooth'});}
+
+function switchTab(t){activeTab=t;['paste','timeline','pending','discuss','checklist'].forEach(id=>{const b=document.getElementById('tab_'+id);if(b)b.classList.toggle('active',id===t);});const c=getCur();if(c){document.getElementById('tabContent').innerHTML=renderTab(c);document.getElementById('chatEnd')?.scrollIntoView({behavior:'smooth'});}}
+function renderTab(c){if(activeTab==='paste')return renderPasteTab(c);if(activeTab==='timeline')return renderTimelineTab(c);if(activeTab==='pending')return renderPendingTab(c);if(activeTab==='discuss')return renderDiscussTab(c);if(activeTab==='checklist')return renderCLTab(c);return'';}
+
+function renderPasteTab(c){
+  const msgs=c.messages||[];
+  return`<div>
+    <div class="info-tip">📥 <strong>持續更新：</strong>有新的email、會議討論、調查結果，直接貼入下方，AI自動更新時程、待確認事項和根因評估。</div>
+    ${msgs.length===0&&!isLoading?'<div style="text-align:center;padding:16px"><p style="color:#94a3b8;font-size:13px">還沒有記錄</p></div>':''}
+    ${msgs.map(m=>`<div style="display:flex;flex-direction:column;align-items:${m.role==='user'?'flex-end':'flex-start'};margin-bottom:10px">
+      ${m.images?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;justify-content:${m.role==='user'?'flex-end':'flex-start'}">${m.images.map(img=>`<img src="${img}" style="max-width:100px;max-height:80px;border-radius:6px"/>`).join('')}</div>`:''}
+      ${m.content?`<div class="${m.role==='user'?'chat-user':'chat-ai'}">${nl2br(m.content)}</div>`:''}
+      <p class="chat-meta" style="text-align:${m.role==='user'?'right':'left'}">${m.role==='assistant'?'AI分析':'你'}・${fmt(m.ts)}</p>
+    </div>`).join('')}
+    ${isLoading?`<div style="padding:8px;font-size:13px;color:#64748b"><span class="pulse"></span>AI分析中...</div>`:''}
+    <div id="chatEnd"></div>
+    ${!c.closed?`<div class="card" style="margin-bottom:0;margin-top:4px">
+      <div id="imgPreview" class="img-prev" style="display:none"></div>
+      <div style="display:flex;gap:6px;align-items:flex-end">
+        <textarea id="chatInput" class="inp" rows="2" style="flex:1;resize:none" placeholder="貼入email文字・Ctrl+V截圖・描述進展..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPaste();}"></textarea>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button class="btn-g" style="padding:7px 9px" onclick="document.getElementById('fileInput').click()">⬆</button>
+          <button class="btn-p" style="padding:7px 9px" onclick="sendPaste()">→</button>
+        </div>
+      </div>
+    </div>`:''}
+  </div>`;}
+
+function renderTimelineTab(c){
+  const items=(c.timeline||[]).sort((a,b)=>a.ts-b.ts);
+  return`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><p style="font-size:12px;color:#64748b;font-weight:500">處理時程履歷（${items.length}筆）</p><button class="btn-g btn-sm" onclick="addTL()">+ 手動新增</button></div>
+  ${items.length===0?'<div style="text-align:center;padding:24px"><p style="color:#94a3b8;font-size:13px">貼入email後自動抽取事件</p></div>':items.map(item=>`<div class="tl-item"><div class="tl-dot"></div><div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:2px"><span style="font-size:12px;font-weight:500;color:#0f172a">${esc(item.d||item.date||'')}</span><span class="badge" style="font-size:9px;background:#f1f5f9;color:#64748b">${esc(item.s||item.source||'')}</span></div><p style="font-size:12px;color:#334155;line-height:1.5;margin:0">${esc(item.e||item.event||'')}</p></div></div>`).join('')}
+  </div>`;}
+
+function renderPendingTab(c){
+  const items=c.pending||[];const open=items.filter(p=>!p.confirmed);const done=items.filter(p=>p.confirmed);
+  return`<div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><p style="font-size:12px;color:#64748b;font-weight:500">待確認事項 <span style="color:#dc2626">${open.length}項未結清</span></p><button class="btn-g btn-sm" onclick="addPD()">+ 新增</button></div>
+  ${open.length===0&&done.length===0?'<div style="text-align:center;padding:24px"><p style="color:#94a3b8;font-size:13px">貼入email後自動抽取</p></div>':''}
+  ${open.map(p=>`<div class="pd-item" onclick="confPD('${p.id}')"><div class="pd-chk"></div><div style="flex:1"><div style="display:flex;gap:5px;align-items:center;margin-bottom:2px">${priBadge(p.priority||p.p||'medium')}${p.owner||p.o?`<span style="font-size:10px;color:#64748b">${esc(p.owner||p.o)}</span>`:''}</div><p style="font-size:13px;color:#0f172a;line-height:1.5;margin:0">${esc(p.item||p.i||'')}</p></div></div>`).join('')}
+  ${done.length?`<p style="font-size:11px;color:#94a3b8;margin:12px 0 8px;text-align:center">已確認 ${done.length} 項</p>${done.map(p=>`<div class="pd-item" style="opacity:0.5"><div class="pd-chk done">✓</div><div style="flex:1"><p style="font-size:12px;color:#64748b;text-decoration:line-through;margin:0">${esc(p.item||p.i||'')}</p>${p.result?`<p style="font-size:11px;color:#16a34a;margin:2px 0 0">✅ ${esc(p.result)}</p>`:''}</div></div>`).join('')}`:''}
+  </div>`;}
+
+function renderDiscussTab(c){
+  const msgs=c.aiDiscussion||[];const assessment=c.aiAssessment||'';
+  const hasD4=DSTEPS.indexOf(c.currentD)>=DSTEPS.indexOf('D4');
+  return`<div>
+  ${assessment?`<div class="card" style="background:#f0f9ff;border-color:#bae6fd;margin-bottom:10px"><p style="font-size:11px;color:#0284c7;font-weight:500;margin-bottom:4px">🤖 AI目前評估</p><p style="font-size:12px;color:#0f172a;line-height:1.6;margin:0">${nl2br(assessment)}</p></div>`:''}
+  <div style="display:flex;gap:6px;margin-bottom:10px">
+    <button onclick="customerView()" style="flex:1;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;border:1.5px solid #0891b2;background:#f0f9ff;color:#0891b2;display:flex;align-items:center;justify-content:center;gap:4px">👁 客戶視野</button>
+    <button onclick="meetingBrief()" style="flex:1;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;font-family:inherit;border:1.5px solid #7c3aed;background:#f5f3ff;color:#7c3aed;display:flex;align-items:center;justify-content:center;gap:4px">📋 會議簡報</button>
+  </div>
+  ${msgs.length===0&&!assessment?'<div style="text-align:center;padding:20px"><p style="color:#94a3b8;font-size:13px;line-height:1.8">AI會主動更新根因評估<br>你可以在這裡與AI討論</p></div>':''}
+  ${msgs.map(m=>`<div style="display:flex;flex-direction:column;align-items:${m.role==='user'?'flex-end':'flex-start'};margin-bottom:10px"><div class="${m.role==='user'?'chat-user':'chat-ai'}">${nl2br(m.content)}</div><p class="chat-meta" style="text-align:${m.role==='user'?'right':'left'}">${m.role==='assistant'?'AI評估':'你'}・${fmt(m.ts)}</p></div>`).join('')}
+  ${isLoading?`<div style="padding:8px;font-size:13px;color:#64748b"><span class="pulse"></span>AI思考中...</div>`:''}
+  <div id="chatEnd"></div>
+  ${!c.closed?`<div class="card" style="margin-bottom:0;margin-top:4px"><div style="display:flex;gap:6px;align-items:flex-end"><textarea id="discussInput" class="inp" rows="2" style="flex:1;resize:none" placeholder="與AI討論根因、挑戰假設..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendDiscuss();}"></textarea><button class="btn-p" style="padding:7px 9px" onclick="sendDiscuss()">→</button></div></div>`:''}
+  </div>`;}
+
+function renderCLTab(c){
+  const tpl=getClTpl();const state=c.checklistState||{};
+  const cats=[...new Set(tpl.map(t=>t.cat))];
+  const done=tpl.filter(t=>state[t.id]?.checked).length;const pct=tpl.length?Math.round((done/tpl.length)*100):0;
+  return`<div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><p style="font-size:12px;font-weight:500;color:#0f172a;margin:0">客訴處置Checklist</p><p style="font-size:10px;color:#94a3b8;margin-top:2px">${done}/${tpl.length} 完成・${pct}%</p></div><button class="btn-g btn-sm" onclick="addCL()">+ 新增項目</button></div>
+  <div style="background:#e2e8f0;border-radius:9999px;height:4px;margin-bottom:12px"><div style="background:${pct===100?'#16a34a':'#1d4ed8'};height:4px;border-radius:9999px;width:${pct}%;transition:width .3s"></div></div>
+  ${cats.map(cat=>`<div class="cl-cat">${cat}</div>${tpl.filter(t=>t.cat===cat).map(t=>{const isDone=state[t.id]?.checked;return`<div class="cl-item${isDone?' done':''}" id="cli_${t.id}" onclick="toggleCL('${t.id}')"><div class="cl-chk${isDone?' done':''}" id="clc_${t.id}">${isDone?'✓':''}</div><p style="flex:1;font-size:13px;margin:0;line-height:1.5;${isDone?'color:#94a3b8;text-decoration:line-through':''}">${esc(t.item)}</p><button onclick="event.stopPropagation();delCL('${t.id}')" style="border:none;background:none;color:#e2e8f0;font-size:14px;cursor:pointer;padding:0 2px">×</button></div>`;}).join('')}`).join('')}
+  <div style="text-align:center;padding:14px 0;border-top:1px solid #f1f5f9;margin-top:8px"><button class="btn-g btn-sm" onclick="addCL()">+ 新增自訂項目（無需改程式）</button></div>
+  </div>`;}
+
+// ── Actions ────────────────────────────────────────────────
+async function sendPaste(){
+  const input=document.getElementById('chatInput');
+  const text=(input?.value||'').trim();if(!text&&!pasteImgs.length)return;
+  const c=getCur();if(!c)return;
+  const userMsg={role:'user',content:text,images:[...pasteImgs],ts:Date.now(),dStep:getCur()?.currentD};
+  c.messages=[...(c.messages||[]),userMsg];save();
+  pasteImgs=[];if(input)input.value='';
+  renderDetail();
+  await doPaste(text,userMsg.images,c);}
+
+async function doPaste(text,imgs,c){
+  isLoading=true;renderDetail();
+  try{
+    const {analysisText,tl,pd,aa,flags}=await callPaste(text,imgs,c);
+    let flagMsg='';
+    if(flags.includes('wc'))flagMsg+='\n\n⚠️ 【對策警示】宣導/訓練類對策→換新員工還會發生嗎？若會，需改製程/設備/防錯機制。';
+    if(flags.includes('ct'))flagMsg+='\n\n⚠️ 【數據矛盾】偵測到相互矛盾說法，已加入待確認清單。';
+    if(flags.includes('ra'))flagMsg+='\n\n🚨 【重大風險】庫存或出貨風險，建議立即確認範圍。';
+    const aiMsg={role:'assistant',content:analysisText+flagMsg,ts:Date.now(),dStep:c.currentD};
+    c.messages=[...(c.messages||[]),aiMsg];
+    // Update timeline
+    const existTL=new Set((c.timeline||[]).map(t=>t.e||t.event));
+    tl.forEach(t=>{if(!(existTL.has(t.e)))c.timeline=[...(c.timeline||[]),{...t,ts:Date.now()}];});
+    // Update pending
+    pd.forEach(p=>{c.pending=[...(c.pending||[]),{id:'P'+Date.now()+Math.random().toString(36).slice(2),item:p.i||p.item,owner:p.o||p.owner||'',priority:p.p||p.priority||'medium',confirmed:false,result:'',ts:Date.now()}];});
+    // Update AI assessment
+    if(aa){c.aiAssessment=aa;c.aiDiscussion=[...(c.aiDiscussion||[]),{role:'assistant',content:'📊 根因評估更新：\n'+aa,ts:Date.now()}];}
+    save();
+  }catch(e){c.messages=[...(c.messages||[]),{role:'assistant',content:'⚠️ AI連線失敗，請稍後再試',ts:Date.now()}];save();}
+  isLoading=false;renderDetail();}
+
+async function sendDiscuss(){
+  const input=document.getElementById('discussInput');const text=(input?.value||'').trim();if(!text)return;
+  const c=getCur();if(!c)return;
+  const userMsg={role:'user',content:text,ts:Date.now()};
+  c.aiDiscussion=[...(c.aiDiscussion||[]),userMsg];save();if(input)input.value='';
+  renderDetail();isLoading=true;renderDetail();
+  try{
+    const apiMsgs=(c.aiDiscussion||[]).map(m=>({role:m.role,content:m.content}));
+    const reply=await callDiscuss(apiMsgs,c);
+    c.aiDiscussion=[...(c.aiDiscussion||[]),{role:'assistant',content:reply,ts:Date.now()}];save();
+  }catch{c.aiDiscussion=[...(c.aiDiscussion||[]),{role:'assistant',content:'⚠️ 連線失敗',ts:Date.now()}];save();}
+  isLoading=false;renderDetail();}
+
+function advD(){const c=getCur();if(!c)return;const i=DSTEPS.indexOf(c.currentD);if(i<7){c.currentD=DSTEPS[i+1];save();renderDetail();}}
+function setD(d){
+  const c=getCur();if(!c||c.closed)return;
+  if(c.currentD===d)return;
+  if(!confirm('確定要將進度調整為 '+d+'（'+DLBLS[d]+'）？'))return;
+  c.currentD=d;save();renderDetail();}
+function confPD(pid){const c=getCur();if(!c)return;const p=c.pending.find(x=>x.id===pid);if(!p)return;const r=prompt('確認結果：\n「'+(p.item||p.i||'')+'」')||'已確認';p.confirmed=true;p.result=r;save();renderDetail();}
+function addTL(){const d=prompt('事件日期（例：5/16）');if(!d)return;const e=prompt('事件描述');if(!e)return;const c=getCur();if(!c)return;c.timeline=[...(c.timeline||[]),{d,e,s:'手動新增',ts:Date.now()}];save();renderDetail();}
+function addPD(){const i=prompt('待確認事項');if(!i)return;const o=prompt('負責人（可留空）')||'';const c=getCur();if(!c)return;c.pending=[...(c.pending||[]),{id:'P'+Date.now(),item:i,owner:o,priority:'medium',confirmed:false,result:'',ts:Date.now()}];save();renderDetail();}
+function addPhoto(){photoLabel=prompt('照片類型（'+PHOTO_LABELS.join('/')+')','不良品外觀')||'不良品外觀';document.getElementById('photoInput').click();}
+function rmPhoto(i){if(!confirm('刪除此照片？'))return;const c=getCur();c.photos.splice(i,1);save();renderDetail();}
+function viewPhoto(i){const c=getCur();if(c)window.open(c.photos[i].data,'_blank');}
+function toggleCL(id){const c=getCur();if(!c)return;if(!c.checklistState)c.checklistState={};const cur=c.checklistState[id];c.checklistState[id]={checked:!cur?.checked,ts:Date.now()};save();const el=document.getElementById('cli_'+id),chk=document.getElementById('clc_'+id);if(el&&chk){const isDone=c.checklistState[id].checked;el.classList.toggle('done',isDone);chk.classList.toggle('done',isDone);chk.textContent=isDone?'✓':'';el.querySelector('p').style.textDecoration=isDone?'line-through':'';el.querySelector('p').style.color=isDone?'#94a3b8':'';}}
+function addCL(){const item=prompt('新增Checklist項目');if(!item?.trim())return;const cat=confirm('屬於「客戶端」請按確定，「廠內端」請按取消')?'客戶端':'廠內端';const tpl=getClTpl();tpl.push({id:'CL'+Date.now(),cat,item:item.trim()});saveClTpl(tpl);renderDetail();}
+function delCL(id){if(!confirm('確定刪除此項目？'))return;saveClTpl(getClTpl().filter(t=>t.id!==id));renderDetail();}
+
+
+
+// ── FQC Combined View ─────────────────────────────────────
+let fqcTab='fqc1'; // 'fqc1' or 'fqc2'
+
+function renderFQC(){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-fqc1').classList.add('active');
+  const list1=casesByMod('fqc1'), list2=casesByMod('fqc2');
+  const list=fqcTab==='fqc1'?list1:list2;
+  document.getElementById('content').innerHTML=`
+    <div style="display:flex;border-bottom:1px solid #e2e8f0;background:#fff;margin-bottom:10px;border-radius:8px 8px 0 0;overflow:hidden">
+      <button onclick="fqcTab='fqc1';renderFQC()" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;background:${fqcTab==='fqc1'?'#eff6ff':'#fff'};color:${fqcTab==='fqc1'?'#1d4ed8':'#64748b'};border-bottom:${fqcTab==='fqc1'?'2px solid #1d4ed8':'2px solid transparent'}">FQC1 外觀（${list1.length}）</button>
+      <button onclick="fqcTab='fqc2';renderFQC()" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;background:${fqcTab==='fqc2'?'#eff6ff':'#fff'};color:${fqcTab==='fqc2'?'#1d4ed8':'#64748b'};border-bottom:${fqcTab==='fqc2'?'2px solid #1d4ed8':'2px solid transparent'}">FQC2 測包（${list2.length}）</button>
+    </div>
+    <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:12px;padding:10px" onclick="activeModule=fqcTab;screen='new';fqcForm=emptyFqcForm();renderNew();updateHdr()">
+      + 新增${fqcTab==='fqc1'?'FQC1 外觀異常':'FQC2 測包異常'}
+    </button>
+    ${list.length===0?`<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無 ${fqcTab==='fqc1'?'FQC1':'FQC2'} 記錄</p></div>`:list.map(c=>`<div class="card" style="cursor:pointer" onclick="curId='${c.id}';activeTab='paste';screen='detail';renderDetail();updateHdr()"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div><div style="display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-wrap:wrap;margin-top:4px"><span>${esc(c.product||'—')}</span><span>${esc(c.wk||'—')}</span><span>${esc(c.batch||'—')}</span><span style="margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}</div></div>`).join('')}`;
+}
+
+// FQC Auto-fill system prompt
+const FQC_FILL_SYS='從以下FQC記錄文字提取資訊，只輸出JSON（不含其他文字）：{"wk":"週次如WK18","date":"YYYY-MM-DD","series":"系列如T850/06","product":"料號","batch":"批次LC","anomalyType":"異常項目","anomalyDetail":"詳細描述","owner":"責任人","inspCount":"抽檢數字","defectCount":"不良數字","defectRate":"不良率數字","handling":"重檢或報廢或特采","rootCause":"原因","countermeasure":"對策","recurrence":"是或否"}';
+
+const IPQC_FILL_SYS='從以下IPQC巡檢記錄文字提取資訊，只輸出JSON：{"wk":"週次","auditDate":"YYYY-MM-DD","ref":"參照品類","defectCat":"缺失分類","station":"站別","defectItem":"缺失項目詳細","owner":"責任人","rootCause":"原因分析","countermeasure":"改善對策","dueDate":"YYYY-MM-DD","recurrence":"是或否"}';
+// ── IPQC Module ───────────────────────────────────────────
+function emptyIpqcForm(){
+  return{wk:'',auditDate:'',ref:'',defectCat:'',station:'',defectItem:'',owner:'',rootCause:'',countermeasure:'',dueDate:'',recurrence:'否'};}
+
+let ipqcForm=emptyIpqcForm();
+
+function renderNewIpqc(){
+  const f=ipqcForm;
+  const cats=['制程混料','外觀不良','尺寸超規','作業疏失','設備異常','物料異常','其他'];
+  document.getElementById('content').innerHTML=`
+    <div class="card" style="background:#fffbeb;border-color:#fde68a;margin-bottom:12px">
+      <p style="font-size:12px;color:#d97706;font-weight:500">IPQC 巡檢異常・連續3次巡檢無再發可結案</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px">
+      <div><label class="lbl">WK週次</label><input class="inp" id="ip_wk" value="${esc(f.wk)}" placeholder="WK18"/></div>
+      <div><label class="lbl">稽核日期</label><input class="inp" id="ip_date" type="date" value="${f.auditDate}"/></div>
+    </div>
+    <div class="field"><label class="lbl">參照/品類</label><input class="inp" id="ip_ref" value="${esc(f.ref)}" placeholder="產品系列或料號"/></div>
+    <div class="field"><label class="lbl">缺失分類 *</label>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">${cats.map(c=>`<button onclick="ipqcForm.defectCat='${c}';renderNewIpqc()" style="padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;border:${f.defectCat===c?'1.5px solid #1d4ed8':'1px solid #cbd5e1'};background:${f.defectCat===c?'#eff6ff':'#fff'};color:${f.defectCat===c?'#1d4ed8':'#64748b'}">${c}</button>`).join('')}</div>
+    </div>
+    <div class="field"><label class="lbl">站別 *</label><input class="inp" id="ip_station" value="${esc(f.station)}" placeholder="外檢站 / 焊接站 / 成型站"/></div>
+    <div class="field"><label class="lbl">缺失項目 *</label><textarea class="inp" id="ip_item" rows="3" style="resize:none" placeholder="描述觀察到的異常...">${esc(f.defectItem)}</textarea></div>
+    <div class="field"><label class="lbl">責任人</label><input class="inp" id="ip_owner" value="${esc(f.owner)}" placeholder="姓名"/></div>
+    <div class="field"><label class="lbl">原因分析</label><textarea class="inp" id="ip_cause" rows="2" style="resize:none" placeholder="初步原因分析...">${esc(f.rootCause)}</textarea></div>
+    <div class="field"><label class="lbl">改善對策</label><textarea class="inp" id="ip_action" rows="2" style="resize:none" placeholder="已採取或計畫的改善措施...">${esc(f.countermeasure)}</textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px">
+      <div><label class="lbl">完成日期</label><input class="inp" id="ip_due" type="date" value="${f.dueDate}"/></div>
+      <div><label class="lbl">是否再發</label>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          ${['是','否'].map(v=>`<button onclick="ipqcForm.recurrence='${v}';renderNewIpqc()" style="flex:1;padding:7px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;border:${f.recurrence===v?`1.5px solid ${v==='是'?'#dc2626':'#16a34a'}`:'1px solid #cbd5e1'};background:${f.recurrence===v?v==='是'?'#fef2f2':'#f0fdf4':'#fff'};color:${f.recurrence===v?v==='是'?'#dc2626':'#16a34a':'#64748b'}">${v}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+    <button class="btn-p" style="width:100%;justify-content:center;padding:10px" onclick="submitIpqc()">建立IPQC記錄並分析</button>`;}
+
+async function ipqcAutoFill(){
+  const text=document.getElementById('ipPaste')?.value.trim();if(!text)return;
+  const btn=document.getElementById('ipAutoBtn'),msg=document.getElementById('ipAutoMsg');
+  btn.disabled=true;btn.textContent='解析中...';msg.style.display='block';msg.style.color='#0284c7';msg.textContent='AI解析中...';
+  try{
+    const raw=await apiCall(IPQC_FILL_SYS,[{role:'user',content:text}],400);
+    function tryJ(s){try{return JSON.parse(s);}catch{return null;}}
+    const j=tryJ(raw)||(()=>{const a=raw.indexOf('{'),b=raw.lastIndexOf('}');return a>=0&&b>a?tryJ(raw.slice(a,b+1)):null;})();
+    if(j){
+      const map={wk:'ip_wk',auditDate:'ip_date',ref:'ip_ref',station:'ip_station',defectItem:'ip_item',owner:'ip_owner',rootCause:'ip_cause',countermeasure:'ip_action',dueDate:'ip_due'};
+      let n=0;
+      Object.entries(j).forEach(([k,v])=>{
+        if(v&&v!=='未知'){
+          if(k==='defectCat'){ipqcForm.defectCat=v;n++;}
+          else if(k==='recurrence'&&['是','否'].includes(v)){ipqcForm.recurrence=v;n++;}
+          else if(map[k]){const el=document.getElementById(map[k]);if(el){el.value=v;el.style.borderColor='#16a34a';n++;}}
+        }});
+      msg.style.color='#16a34a';msg.textContent='✅ 已填寫'+n+'個欄位，請確認後提交';
+      document.getElementById('ipPaste').value='';
+      if(j.defectCat||j.recurrence)renderNewIpqc();
+    }else{msg.style.color='#dc2626';msg.textContent='⚠️ 解析失敗，請手動填寫';}
+  }catch(e){msg.style.color='#dc2626';msg.textContent='⚠️ 連線失敗';}
+  btn.disabled=false;btn.textContent='✨ AI自動解析填寫';}
+
+
+async function submitIpqc(){
+  const g=id=>document.getElementById('ip_'+id)?.value.trim()||'';
+  Object.assign(ipqcForm,{wk:g('wk'),auditDate:g('date'),ref:g('ref'),station:g('station'),defectItem:g('item'),owner:g('owner'),rootCause:g('cause'),countermeasure:g('action'),dueDate:g('due')});
+  if(!ipqcForm.defectCat){alert('請選擇缺失分類');return;}
+  if(!ipqcForm.station||!ipqcForm.defectItem){alert('請填寫站別和缺失項目');return;}
+  const nc={id:genId(),type:'ipqc',createdAt:Date.now(),closed:false,trackStatus:'tracking',
+    wk:ipqcForm.wk,auditDate:ipqcForm.auditDate,ref:ipqcForm.ref,defectCat:ipqcForm.defectCat,
+    station:ipqcForm.station,defectItem:ipqcForm.defectItem,owner:ipqcForm.owner,
+    rootCause:ipqcForm.rootCause,countermeasure:ipqcForm.countermeasure,dueDate:ipqcForm.dueDate,
+    recurrence:ipqcForm.recurrence,trackCount:0,
+    photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
+  cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='paste';renderDetail();updateHdr();
+  // Auto-detect weak countermeasure
+  const isWeak=nc.countermeasure&&/宣導|訓練|教育|注意|提醒|提示|培訓/.test(nc.countermeasure);
+  const isRecur=nc.recurrence==='是';
+  const initText=`IPQC巡檢異常：${nc.defectCat} | ${nc.station} | ${nc.wk} | ${nc.defectItem}
+責任人：${nc.owner}
+原因：${nc.rootCause||'未填'}
+對策：${nc.countermeasure||'未填'}
+是否再發：${nc.recurrence}`;
+  await doPaste(initText,[],nc);}
+
+// ── Yield Module ───────────────────────────────────────────
+let yieldImgs=[];
+
+function renderYield(){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-yield').classList.add('active');
+  const yieldCases=cases.filter(c=>c.type==='yield');
+  document.getElementById('content').innerHTML=`
+    <div class="card" style="border-left:3px solid #16a34a;margin-bottom:12px">
+      <p style="font-size:13px;font-weight:500;color:#0f172a">良率分析</p>
+      <p style="font-size:11px;color:#64748b;margin-top:3px">貼入良率趨勢圖・AI識別轉折點・記錄變好/變差原因</p>
+    </div>
+    <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:12px;padding:10px;background:#16a34a" onclick="renderNewYield()">
+      📊 新增良率分析
+    </button>
+    ${yieldCases.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄<br>上傳良率趨勢圖開始分析</p></div>':yieldCases.map(c=>`<div class="card" style="cursor:pointer" onclick="curId='${c.id}';activeTab='paste';screen='detail';renderDetail();updateHdr()"><div style="display:flex;justify-content:space-between;align-items:center"><p style="font-size:13px;font-weight:500;color:#0f172a;margin:0">${esc(c.title||'良率分析')}</p><span class="badge" style="background:${c.trend==='down'?'#dc262618':'#16a34a18'};color:${c.trend==='down'?'#dc2626':'#16a34a'}">${c.trend==='down'?'↓下降':'↑改善'}</span></div><p style="font-size:10px;color:#94a3b8;margin-top:4px">${esc(c.period||'')}・${new Date(c.createdAt).toLocaleDateString('zh-TW')}</p></div>`).join('')}`;
+}
+
+function renderNewYield(){
+  yieldImgs=[];
+  document.getElementById('content').innerHTML=`
+    <div class="card" style="margin-bottom:12px">
+      <p style="font-size:13px;font-weight:500;color:#0f172a;margin-bottom:8px">📊 新增良率分析</p>
+      <div class="field"><label class="lbl">分析標題</label><input class="inp" id="yt_title" placeholder="例：VN_LM 良率趨勢 2025-2026"/></div>
+      <div class="field"><label class="lbl">時間範圍</label><input class="inp" id="yt_period" placeholder="例：2025-01 ~ 2026-05"/></div>
+      <div class="field"><label class="lbl">趨勢方向</label>
+        <div style="display:flex;gap:8px">
+          <button id="yt_down" onclick="document.getElementById('yt_down').style.background='#fef2f2';document.getElementById('yt_down').style.color='#dc2626';document.getElementById('yt_down').style.borderColor='#dc2626';document.getElementById('yt_up').style.background='#fff';document.getElementById('yt_up').style.color='#64748b';document.getElementById('yt_up').style.borderColor='#cbd5e1'" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;border:1px solid #cbd5e1;background:#fff;color:#64748b">↓ 下降趨勢</button>
+          <button id="yt_up" onclick="document.getElementById('yt_up').style.background='#f0fdf4';document.getElementById('yt_up').style.color='#16a34a';document.getElementById('yt_up').style.borderColor='#16a34a';document.getElementById('yt_down').style.background='#fff';document.getElementById('yt_down').style.color='#64748b';document.getElementById('yt_down').style.borderColor='#cbd5e1'" style="flex:1;padding:9px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;border:1px solid #cbd5e1;background:#fff;color:#64748b">↑ 改善趨勢</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <p style="font-size:12px;font-weight:500;color:#64748b;margin-bottom:8px">📷 貼入良率趨勢圖</p>
+      <div id="yImgPrev" style="display:none;margin-bottom:8px"></div>
+      <div style="border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById('yImgFile').click()">
+        <p style="font-size:13px;color:#94a3b8">點擊上傳圖片<br>或 Ctrl+V 貼上截圖</p>
+      </div>
+      <input type="file" id="yImgFile" accept="image/*" style="display:none" onchange="addYieldImg(event)"/>
+    </div>
+    <button class="btn-p" style="width:100%;justify-content:center;padding:10px;background:#16a34a" onclick="submitYield()">建立良率分析並讓AI解讀</button>`;
+
+  // Handle paste for yield images
+  const yPaste=e=>{Array.from(e.clipboardData?.items||[]).forEach(item=>{if(item.type.startsWith('image/')){const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{yieldImgs.push(d);renderYieldImgPrev();});r.readAsDataURL(item.getAsFile());}});};
+  document.addEventListener('paste',yPaste);
+  window._yPasteHandler=yPaste;}
+
+function addYieldImg(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{yieldImgs.push(d);renderYieldImgPrev();});r.readAsDataURL(f);e.target.value='';}
+function renderYieldImgPrev(){const el=document.getElementById('yImgPrev');if(!el)return;el.innerHTML=yieldImgs.map((img,i)=>`<div style="position:relative;display:inline-block;margin-right:5px"><img src="${img}" style="max-width:200px;border-radius:6px"/><button onclick="yieldImgs.splice(${i},1);renderYieldImgPrev()" style="position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:#dc2626;border:none;color:#fff;font-size:9px;cursor:pointer">×</button></div>`).join('');el.style.display=yieldImgs.length?'block':'none';}
+
+async function submitYield(){
+  const title=document.getElementById('yt_title')?.value.trim()||'良率分析';
+  const period=document.getElementById('yt_period')?.value.trim()||'';
+  const downBtn=document.getElementById('yt_down');
+  const trend=downBtn?.style.background==='rgb(254, 242, 242)'?'down':'up';
+  if(!yieldImgs.length&&!period){alert('請至少填寫時間範圍或上傳趨勢圖');return;}
+  if(window._yPasteHandler){document.removeEventListener('paste',window._yPasteHandler);delete window._yPasteHandler;}
+  const nc={id:'Y'+Date.now().toString(36).toUpperCase(),type:'yield',createdAt:Date.now(),title,period,trend,closed:false,photos:[...yieldImgs.map(d=>({data:d,label:'良率趨勢圖',ts:Date.now()}))],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
+  cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='paste';renderDetail();updateHdr();
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-yield').classList.add('active');
+  const initText=`良率分析：${title}，時間範圍：${period}，趨勢：${trend==='down'?'下降':'改善'}。請分析趨勢圖，識別主要轉折點，並提出可能的變差/改善原因方向。`;
+  await doPaste(initText,yieldImgs,nc);}
+
+
+async function customerView(){
+  const c=getCur();if(!c)return;
+  // Build case summary for customer review
+  const caseSummary=buildCaseSummary(c);
+  const userMsg={role:'user',content:'[客戶視野分析請求]\n請以客戶SQE角度審查此8D案件。',ts:Date.now(),dStep:c.currentD};
+  c.aiDiscussion=[...(c.aiDiscussion||[]),userMsg];save();
+  renderDetail();isLoading=true;renderDetail();
+  try{
+    const reply=await apiCall(CUSTOMER_VIEW_SYS+'\n\n【案件資料】\n'+caseSummary,[{role:'user',content:'請審查此8D案件並給出客戶視角評估。案件資料：\n'+caseSummary}],1200);
+    c.aiDiscussion=[...(c.aiDiscussion||[]),{role:'assistant',content:'👁 **客戶視野分析**\n\n'+reply,ts:Date.now()}];
+    save();
+  }catch(e){c.aiDiscussion=[...(c.aiDiscussion||[]),{role:'assistant',content:'⚠️ 分析失敗',ts:Date.now()}];save();}
+  isLoading=false;renderDetail();}
+
+async function meetingBrief(){
+  const c=getCur();if(!c)return;
+  const caseSummary=buildCaseSummary(c);
+  const BRIEF_SYS='你是品保顧問，幫助主管在10分鐘內讓所有人方向對齊。根據案件資料，生成會議簡報框架：\n【現在確認的事實】✅\n【還不知道的事】❓\n【層別方向建議】（時間/設備/材料/人員）\n【今天會議要決定的事】□\n使用繁體中文，條列式，手機易讀。';
+  const userMsg={role:'user',content:'[會議簡報請求]',ts:Date.now()};
+  c.aiDiscussion=[...(c.aiDiscussion||[]),userMsg];save();
+  renderDetail();isLoading=true;renderDetail();
+  try{
+    const reply=await apiCall(BRIEF_SYS,[{role:'user',content:'案件資料：\n'+caseSummary}],1000);
+    c.aiDiscussion=[...(c.aiDiscussion||[]),{role:'assistant',content:'📋 **會議簡報框架**\n\n'+reply,ts:Date.now()}];
+    save();
+  }catch(e){c.aiDiscussion=[...(c.aiDiscussion||[]),{role:'assistant',content:'⚠️ 失敗',ts:Date.now()}];save();}
+  isLoading=false;renderDetail();}
+
+function buildCaseSummary(c){
+  const msgs=(c.messages||[]).filter(m=>m.role==='assistant').slice(-5).map(m=>m.content).join('\n---\n');
+  const pd=(c.pending||[]).filter(p=>!p.confirmed).map(p=>p.item||p.i||'').join('・');
+  const tl=(c.timeline||[]).slice(-5).map(t=>`${t.d||t.date||''}：${t.e||t.event||''}`).join('\n');
+  return `產品：${c.which||'—'} | 客戶：${c.who||'—'} | DC：${c.when||'—'} | 不良：${c.defectCount||'—'}pcs
+現象：${c.what||'—'}
+風險批：DC${c.riskBatch?.start||'—'}～${c.riskBatch?.end||'—'}
+8D進度：${c.currentD||'D1'}
+AI評估：${c.aiAssessment||'尚未評估'}
+時程：\n${tl||'無'}
+未結清待確認：${pd||'無'}
+近期分析記錄：\n${msgs||'無'}`;}
+
+// ── Placeholder ────────────────────────────────────────────
+function renderPlaceholder(){const labels={ipqc:'IPQC 巡檢查核',yield:'良率分析',fqc2:'FQC2 測包'};document.getElementById('content').innerHTML=`<div class="card" style="text-align:center;padding:56px 24px"><p style="font-size:40px">⚙️</p><p style="font-size:15px;font-weight:500;color:#0f172a;margin-top:16px">${labels[activeModule]||activeModule}</p><p style="font-size:13px;color:#94a3b8;margin-top:8px">Phase 3 開發中</p></div>`;}
+
+// ── Init ───────────────────────────────────────────────────
+document.querySelectorAll('.build-tag').forEach(el=>el.textContent=BUILD);
+renderDashboard();updateHdr();
+// Load from Google Sheets on startup
+if(SHEETS_URL){loadFromSheets().then(loaded=>{if(loaded){renderDashboard();setSyncStatus('ok');}});}
+else{setSyncStatus('idle');}
+</script>
+</body>
+</html>
