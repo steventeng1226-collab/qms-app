@@ -92,7 +92,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.5';
+const BUILD='v3.7';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -1156,9 +1156,9 @@ function renderKB(){
       <p style="font-size:15px;font-weight:600;color:#fff;margin:0">📚 品質管理知識庫</p>
       <p style="font-size:11px;color:#93c5fd;margin-top:4px">QC七大手法・製程能力分析 Cpk・8D應用指引</p>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">
       ${[['all','全部','#1d4ed8'],['qc7','🔧 QC七大手法','#7c3aed'],['cpk','📊 Cpk','#0891b2'],['8d','🎯 8D步驟','#dc2626'],['fmea','⚠️ FMEA','#d97706'],['abbr','🔤 品保縮寫','#16a34a'],['core5','🏭 五大工具','#1e3a8a']].map(([f,l,c])=>`
-      <button onclick="kbFilter='${f}';renderKB()" style="flex-shrink:0;padding:5px 10px;border-radius:9999px;border:${kbFilter===f||(!kbFilter&&f==='all')?`1.5px solid ${c}`:'1px solid #e2e8f0'};background:${kbFilter===f||(!kbFilter&&f==='all')?c+'18':'#fff'};color:${kbFilter===f||(!kbFilter&&f==='all')?c:'#64748b'};font-size:11px;cursor:pointer;font-family:inherit;font-weight:${kbFilter===f||(!kbFilter&&f==='all')?'600':'400'}">${l}</button>`).join('')}
+      <button onclick="kbFilter='${f}';renderKB()" style="padding:7px 4px;border-radius:8px;border:${kbFilter===f||(!kbFilter&&f==='all')?`1.5px solid ${c}`:'1px solid #e2e8f0'};background:${kbFilter===f||(!kbFilter&&f==='all')?c+'18':'#fff'};color:${kbFilter===f||(!kbFilter&&f==='all')?c:'#64748b'};font-size:11px;cursor:pointer;font-family:inherit;font-weight:${kbFilter===f||(!kbFilter&&f==='all')?'600':'400'};text-align:center;line-height:1.3">${l}</button>`).join('')}
     </div>
     ${Object.entries(stageGroups).map(([stage,tools])=>`
       <div style="margin-bottom:14px">
