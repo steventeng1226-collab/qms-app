@@ -66,6 +66,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 /* Icon fallbacks */
 .ti::before{font-family:'tabler-icons'!important}
+
+.toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;color:#fff;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:320px;text-align:center;white-space:nowrap}
+.toast.show{opacity:1}
 </style>
 </head>
 <body>
@@ -89,7 +92,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.2';
+const BUILD='v3.3';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -154,6 +157,7 @@ async function syncToSheets() {
     if(result && result.saved !== undefined){
       setSyncStatus('ok');
       localStorage.setItem('qms_last_sync_count', result.saved);
+      toast('☁ 已同步 '+result.saved+' 筆到 Sheets','info',1800);
     }else{
       setSyncStatus('error');
       console.error('Sync failed:',result);
@@ -636,12 +640,14 @@ function renderDashboard(){
 function renderList(){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
   (document.getElementById('nav-'+activeModule)||document.getElementById('nav-complaint')).classList.add('active');
-  const list=casesByMod(activeModule);
+  const allList=casesByMod(activeModule);
+  const list=filterCases(allList);
   document.getElementById('content').innerHTML=`
-    <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:12px;padding:10px" onclick="screen='new';formStep=1;formData=emptyForm();fqcForm=emptyFqcForm();activeTab='paste';renderNew();updateHdr()">
+    <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:8px;padding:10px" onclick="screen='new';formStep=1;formData=emptyForm();fqcForm=emptyFqcForm();activeTab='paste';renderNew();updateHdr()">
       + 新增${activeModule==='complaint'?'客訴案件':activeModule==='fqc1'?'FQC1異常':'IPQC巡檢記錄'}
     </button>
-    ${list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:8px;font-size:11px;flex-wrap:wrap;margin-top:5px;align-items:center">
+    ${renderSearchBar(activeModule==='complaint'?'搜尋客戶名、DC、型號...':'搜尋異常項目、產品、站別...')}
+    ${list.length===0&&searchQuery?'<div class="card" style="text-align:center;padding:30px"><p style="color:#94a3b8;font-size:13px">找不到符合的案件</p></div>':list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:8px;font-size:11px;flex-wrap:wrap;margin-top:5px;align-items:center">
   <span style="color:#334155;font-weight:500">${esc(c.who||c.product||'—')}</span>
   <span style="color:#64748b">${dcDisplay(c)}</span>
   ${ppmStr(c)||''}
@@ -899,24 +905,32 @@ function renderInfoTab(c){
     </div>
   </div>`;
 
-  // For non-complaint types
-  return`<div><div class="card">
-    <p style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">📌 案件基本資料</p>
-    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px">
-      ${c.type==='ipqc'?`
-        <span style="color:#94a3b8">缺失分類</span><span style="color:#0f172a;font-weight:500">${esc(c.defectCat||'—')}</span>
-        <span style="color:#94a3b8">站別</span><span style="color:#0f172a">${esc(c.station||'—')}</span>
-        <span style="color:#94a3b8">缺失項目</span><span style="color:#0f172a;font-size:12px">${esc(c.defectItem||'—')}</span>
-        <span style="color:#94a3b8">責任人</span><span style="color:#0f172a">${esc(c.owner||'—')}</span>
-        <span style="color:#94a3b8">是否再發</span><span style="color:${c.recurrence==='是'?'#dc2626':'#16a34a'};font-weight:500">${c.recurrence||'—'}</span>
-        <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
-      `:`
-        <span style="color:#94a3b8">產品</span><span style="color:#0f172a;font-weight:500">${esc(c.product||c.title||'—')}</span>
-        <span style="color:#94a3b8">期間</span><span style="color:#0f172a">${esc(c.period||c.batch||'—')}</span>
-      `}
+  // For FQC/IPQC with recurrence tracking
+  const isFqcIpqc=c.type==='fqc1'||c.type==='fqc2'||c.type==='ipqc';
+  return`<div>
+    <div class="card" style="margin-bottom:8px">
+      <p style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">📌 案件基本資料</p>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px">
+        ${c.type==='ipqc'?`
+          <span style="color:#94a3b8">缺失分類</span><span style="color:#0f172a;font-weight:500">${esc(c.defectCat||'—')}</span>
+          <span style="color:#94a3b8">站別</span><span style="color:#0f172a">${esc(c.station||'—')}</span>
+          <span style="color:#94a3b8">缺失項目</span><span style="color:#0f172a;font-size:12px">${esc(c.defectItem||'—')}</span>
+          <span style="color:#94a3b8">責任人</span><span style="color:#0f172a">${esc(c.owner||'—')}</span>
+          <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
+        `:c.type==='fqc1'||c.type==='fqc2'?`
+          <span style="color:#94a3b8">異常項目</span><span style="color:#0f172a;font-weight:500">${esc(c.anomalyType||'—')}</span>
+          <span style="color:#94a3b8">產品</span><span style="color:#0f172a;font-size:12px">${esc(c.product||'—')}</span>
+          <span style="color:#94a3b8">批次</span><span style="color:#0f172a">${esc(c.batch||'—')}</span>
+          <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
+          <span style="color:#94a3b8">不良</span><span style="color:#0f172a">${esc(c.defectCount||'—')}${c.inspCount?' / '+esc(c.inspCount)+'抽':''}</span>
+        `:`
+          <span style="color:#94a3b8">標題</span><span style="color:#0f172a">${esc(c.title||'—')}</span>
+          <span style="color:#94a3b8">期間</span><span style="color:#0f172a">${esc(c.period||c.batch||'—')}</span>
+        `}
+      </div>
     </div>
-  </div>
-  <div style="margin-top:8px"><button class="btn-p" style="width:100%;justify-content:center;padding:9px;font-size:12px" onclick="switchTab('paste')">📥 貼入分析</button></div>
+    ${isFqcIpqc?renderTrackProgress(c):''}
+    <div style="display:flex;gap:8px"><button class="btn-p" style="flex:1;justify-content:center;padding:9px;font-size:12px" onclick="switchTab('paste')">📥 貼入分析</button></div>
   </div>`;
 }
 function renderPasteTab(c){
@@ -1387,6 +1401,141 @@ function saveSheetsSetting(){
   if(url) localStorage.setItem('qms_sheets_url',url);
   alert('Sheets設定已儲存，重新載入頁面生效');
   location.reload();
+}
+
+function toast(msg, type='ok', duration=2500){
+  let el=document.getElementById('toastEl');
+  if(!el){el=document.createElement('div');el.id='toastEl';el.className='toast';document.body.appendChild(el);}
+  const colors={ok:'#16a34a',error:'#dc2626',warn:'#d97706',info:'#1d4ed8'};
+  el.style.background=colors[type]||colors.ok;
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),duration);
+}
+
+let searchQuery='';
+
+function renderSearchBar(placeholder){
+  return`<div style="position:relative;margin-bottom:10px">
+    <input id="searchInput" class="inp" value="${esc(searchQuery)}" placeholder="${placeholder||'搜尋案件...'}"
+      oninput="searchQuery=this.value;renderList()" style="padding-left:32px"/>
+    <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:14px">🔍</span>
+    ${searchQuery?`<button onclick="searchQuery='';document.getElementById('searchInput').value='';renderList()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:none;cursor:pointer;color:#94a3b8;font-size:16px">×</button>`:''}
+  </div>`;
+}
+
+function filterCases(list){
+  if(!searchQuery.trim())return list;
+  const q=searchQuery.toLowerCase();
+  return list.filter(c=>{
+    const fields=[c.what,c.who,c.which,c.when,c.anomalyType,c.product,c.batch,c.defectCat,c.station,c.title,c.period];
+    return fields.some(f=>f&&String(f).toLowerCase().includes(q));
+  });
+}
+
+const TRACK_THRESHOLD={fqc1:5,fqc2:5,ipqc:3};
+
+function getConsecutiveNoRecur(c){
+  const entries=(c.trackEntries||[]);
+  if(!entries.length)return 0;
+  let count=0;
+  for(let i=entries.length-1;i>=0;i--){
+    if(entries[i].result==='無再發')count++;
+    else break;
+  }
+  return count;
+}
+
+function addTrackEntry(caseId){
+  const c=cases.find(x=>x.id===caseId);if(!c)return;
+  // Show track entry modal
+  const modal=document.createElement('div');
+  modal.id='trackModal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:flex-end';
+  modal.innerHTML=`<div style="background:#fff;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:430px;margin:0 auto">
+    <p style="font-size:15px;font-weight:600;color:#0f172a;margin:0 0 14px">新增追蹤記錄</p>
+    <div class="field"><label class="lbl">巡檢日期</label><input class="inp" id="tr_date" type="date" value="${new Date().toISOString().slice(0,10)}"/></div>
+    <div class="field"><label class="lbl">WK／批次</label><input class="inp" id="tr_batch" placeholder="WK22 / DK6B00..."/></div>
+    <div class="field"><label class="lbl">追蹤結果 *</label>
+      <div style="display:flex;gap:8px">
+        <button id="tr_ok" onclick="setTrackResult('無再發')" style="flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;border:1.5px solid #16a34a;background:#f0fdf4;color:#16a34a">✅ 無再發</button>
+        <button id="tr_ng" onclick="setTrackResult('再發')" style="flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;border:1px solid #e2e8f0;background:#fff;color:#64748b">❌ 再發</button>
+      </div>
+    </div>
+    <div class="field"><label class="lbl">備註</label><input class="inp" id="tr_note" placeholder="現象描述、數量等（選填）"/></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="document.getElementById('trackModal')?.remove()" class="btn-g" style="flex:1;justify-content:center">取消</button>
+      <button onclick="submitTrackEntry('${caseId}')" class="btn-p" style="flex:2;justify-content:center;padding:10px">儲存追蹤記錄</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+let _trackResult='無再發';
+function setTrackResult(r){
+  _trackResult=r;
+  const ok=document.getElementById('tr_ok'),ng=document.getElementById('tr_ng');
+  if(r==='無再發'){ok.style.cssText='flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;border:1.5px solid #16a34a;background:#f0fdf4;color:#16a34a';ng.style.cssText='flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;border:1px solid #e2e8f0;background:#fff;color:#64748b';}
+  else{ng.style.cssText='flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;border:1.5px solid #dc2626;background:#fef2f2;color:#dc2626';ok.style.cssText='flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;border:1px solid #e2e8f0;background:#fff;color:#64748b';}
+}
+
+function submitTrackEntry(caseId){
+  const c=cases.find(x=>x.id===caseId);if(!c)return;
+  const date=document.getElementById('tr_date')?.value||'';
+  const batch=document.getElementById('tr_batch')?.value.trim()||'';
+  const note=document.getElementById('tr_note')?.value.trim()||'';
+  const result=_trackResult||'無再發';
+  c.trackEntries=[...(c.trackEntries||[]),{date,batch,result,note,ts:Date.now()}];
+  c.recurrence=result==='再發'?'是':'否';
+  const consecutive=getConsecutiveNoRecur(c);
+  const threshold=TRACK_THRESHOLD[c.type]||5;
+  if(result==='再發'){
+    c.trackStatus='tracking';
+    toast('⚠️ 再發！對策可能失效，需重新分析根因','error',4000);
+  } else if(consecutive>=threshold){
+    c.trackStatus='closed';
+    toast(`✅ 連續${threshold}次無再發，達到結案條件！`,'ok');
+  } else {
+    c.trackStatus='tracking';
+    toast(`📊 無再發 ${consecutive}/${threshold}，繼續追蹤`,'info');
+  }
+  save();
+  document.getElementById('trackModal')?.remove();
+  renderDetail(false);
+  _trackResult='無再發';
+}
+
+function renderTrackProgress(c){
+  const entries=c.trackEntries||[];
+  const consecutive=getConsecutiveNoRecur(c);
+  const threshold=TRACK_THRESHOLD[c.type]||5;
+  const pct=Math.round((consecutive/threshold)*100);
+  const isRecur=c.recurrence==='是'&&entries.length>0&&entries[entries.length-1]?.result==='再發';
+  
+  return`<div class="card" style="margin-bottom:8px;border-color:${isRecur?'#fecaca':c.trackStatus==='closed'?'#bbf7d0':'#e2e8f0'}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <p style="font-size:12px;font-weight:600;color:#0f172a;margin:0">📊 再發追蹤</p>
+      <button onclick="addTrackEntry('${c.id}')" class="btn-g btn-sm" ${c.trackStatus==='closed'?'disabled':''}>+ 新增記錄</button>
+    </div>
+    ${isRecur?`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;margin-bottom:8px">
+      <p style="font-size:13px;font-weight:600;color:#dc2626;margin:0 0 4px">🚨 再發警示</p>
+      <p style="font-size:12px;color:#0f172a;line-height:1.6;margin:0">改善對策可能失效或存在複合性問題。<br>建議：重新進行D4真因分析，檢查是否有遺漏的根因。</p>
+    </div>`:''}
+    ${c.trackStatus==='closed'?`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;margin-bottom:8px"><p style="font-size:12px;color:#16a34a;font-weight:500;margin:0">✅ 連續${threshold}次無再發，達到結案條件</p></div>`:''}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <span style="font-size:11px;color:#64748b">連續無再發：${consecutive}/${threshold}次</span>
+      <span style="font-size:11px;font-weight:500;color:${pct>=100?'#16a34a':isRecur?'#dc2626':'#1d4ed8'}">${pct}%</span>
+    </div>
+    <div style="background:#f1f5f9;border-radius:9999px;height:6px;margin-bottom:10px">
+      <div style="background:${pct>=100?'#16a34a':isRecur?'#dc2626':'#1d4ed8'};height:6px;border-radius:9999px;width:${pct}%;transition:width .4s"></div>
+    </div>
+    ${entries.length===0?`<p style="font-size:12px;color:#94a3b8;text-align:center;padding:8px 0">尚無追蹤記錄</p>`
+    :entries.slice(-5).reverse().map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f8fafc;font-size:12px">
+      <div><span style="font-weight:500;color:${e.result==='再發'?'#dc2626':'#16a34a'}">${e.result==='再發'?'❌ 再發':'✅ 無再發'}</span>${e.batch?` <span style="color:#64748b">${esc(e.batch)}</span>`:''}</div>
+      <div style="text-align:right"><span style="color:#94a3b8">${e.date||''}</span>${e.note?`<br><span style="color:#64748b;font-size:10px">${esc(e.note)}</span>`:''}</div>
+    </div>`).join('')}
+  </div>`;
 }
 // ── FQC Combined View ─────────────────────────────────────
 let fqcTab='fqc1'; // 'fqc1' or 'fqc2'
