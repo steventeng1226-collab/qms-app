@@ -89,7 +89,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.0';
+const BUILD='v3.1';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -477,7 +477,24 @@ document.addEventListener('paste',e=>{
       const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{pasteImgs.push(d);renderPrev();});
       r.readAsDataURL(item.getAsFile());}});});
 function handleFile(e){Array.from(e.target.files||[]).forEach(f=>{const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{pasteImgs.push(d);renderPrev();});r.readAsDataURL(f);});e.target.value='';}
-function compress(dataUrl,cb){const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const MAX=600;let w=img.width,h=img.height;if(w>MAX){h=h*(MAX/w);w=MAX;}if(h>MAX){w=w*(MAX/h);h=MAX;}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',0.7));};img.src=dataUrl;}
+function compress(dataUrl,cb){
+  const img=new Image();
+  img.onload=()=>{
+    const MAX=800; // max 800px side
+    let w=img.width,h=img.height;
+    if(w>MAX){h=Math.round(h*(MAX/w));w=MAX;}
+    if(h>MAX){w=Math.round(w*(MAX/h));h=MAX;}
+    const c=document.createElement('canvas');
+    c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    // Try quality 0.7 first, if >300KB drop to 0.5
+    let result=c.toDataURL('image/jpeg',0.7);
+    if(result.length>400000) result=c.toDataURL('image/jpeg',0.5);
+    if(result.length>300000) result=c.toDataURL('image/jpeg',0.35);
+    cb(result);
+  };
+  img.src=dataUrl;
+}
 function renderPrev(){const el=document.getElementById('imgPreview');if(!el)return;el.innerHTML=pasteImgs.map((img,i)=>`<div class="img-thumb"><img src="${img}"/><button class="img-rm2" onclick="rmImg(${i})">×</button></div>`).join('');el.style.display=pasteImgs.length?'flex':'none';}
 function rmImg(i){pasteImgs.splice(i,1);renderPrev();}
 function handlePhoto(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>compress(ev.target.result,d=>{const c=getCur();if(!c)return;c.photos=[...(c.photos||[]),{data:d,label:photoLabel,ts:Date.now()}];save();renderDetail();});r.readAsDataURL(f);e.target.value='';}
@@ -1030,7 +1047,26 @@ function setD(d){
 function confPD(pid){const c=getCur();if(!c)return;const p=c.pending.find(x=>x.id===pid);if(!p)return;const r=prompt('確認結果：\n「'+(p.item||p.i||'')+'」')||'已確認';p.confirmed=true;p.result=r;save();renderDetail();}
 function addTL(){const d=prompt('事件日期（例：5/16）');if(!d)return;const e=prompt('事件描述');if(!e)return;const c=getCur();if(!c)return;c.timeline=[...(c.timeline||[]),{d,e,s:'手動新增',ts:Date.now()}];save();renderDetail();}
 function addPD(){const i=prompt('待確認事項');if(!i)return;const o=prompt('負責人（可留空）')||'';const c=getCur();if(!c)return;c.pending=[...(c.pending||[]),{id:'P'+Date.now(),item:i,owner:o,priority:'medium',confirmed:false,result:'',ts:Date.now()}];save();renderDetail();}
-function addPhoto(){photoLabel=prompt('照片類型（'+PHOTO_LABELS.join('/')+')','不良品外觀')||'不良品外觀';document.getElementById('photoInput').click();}
+function addPhoto(){
+  // Show label picker inline instead of prompt (prompt blocks file picker on mobile)
+  const existing=document.getElementById('photoLabelPicker');
+  if(existing){existing.remove();return;}
+  const picker=document.createElement('div');
+  picker.id='photoLabelPicker';
+  picker.style.cssText='position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.15);width:280px';
+  picker.innerHTML=`<p style="font-size:12px;font-weight:600;color:#64748b;margin:0 0 8px">選擇照片類型</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      ${PHOTO_LABELS.map(l=>`<button onclick="selectPhotoLabel('${l}')" style="padding:6px 10px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;font-size:12px;cursor:pointer;font-family:inherit">${l}</button>`).join('')}
+    </div>
+    <button onclick="document.getElementById('photoLabelPicker')?.remove()" style="margin-top:8px;width:100%;padding:6px;border:1px solid #e2e8f0;background:#fff;border-radius:6px;font-size:12px;cursor:pointer;color:#94a3b8;font-family:inherit">取消</button>`;
+  document.body.appendChild(picker);
+}
+
+function selectPhotoLabel(label){
+  photoLabel=label;
+  document.getElementById('photoLabelPicker')?.remove();
+  document.getElementById('photoInput').click();
+}
 function rmPhoto(i){if(!confirm('刪除此照片？'))return;const c=getCur();c.photos.splice(i,1);save();renderDetail();}
 function viewPhoto(i){const c=getCur();if(c)window.open(c.photos[i].data,'_blank');}
 function toggleCL(id){const c=getCur();if(!c)return;if(!c.checklistState)c.checklistState={};const cur=c.checklistState[id];c.checklistState[id]={checked:!cur?.checked,ts:Date.now()};save();const el=document.getElementById('cli_'+id),chk=document.getElementById('clc_'+id);if(el&&chk){const isDone=c.checklistState[id].checked;el.classList.toggle('done',isDone);chk.classList.toggle('done',isDone);chk.textContent=isDone?'✓':'';el.querySelector('p').style.textDecoration=isDone?'line-through':'';el.querySelector('p').style.color=isDone?'#94a3b8':'';}}
