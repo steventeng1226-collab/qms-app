@@ -73,7 +73,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
   <div class="hdr" id="hdr">
     <button id="btnBack" onclick="goBack()" style="display:none;border:none;background:none;padding:4px;cursor:pointer;color:#93c5fd"><i class="ti ti-arrow-left" style="font-size:20px"></i></button>
     <span class="hdr-title" id="hdrTitle">產線異常管理</span>
-    <span id="syncStatus" style="font-size:14px;margin-right:6px;cursor:pointer" onclick="syncToSheets()" title="點擊立即同步"></span><span class="build-tag">${BUILD}</span>
+    <span id="syncStatus" style="font-size:14px;margin-right:2px;cursor:pointer" onclick="manualSync()" title="點擊同步"></span><button onclick="screen='settings';renderSettings();updateHdr()" style="border:none;background:none;color:#93c5fd;padding:4px;cursor:pointer;font-size:16px">⚙</button><span class="build-tag">${BUILD}</span>
     <button id="btnAdd" style="display:none;border:none;background:none;padding:4px;cursor:pointer;color:#93c5fd"><i class="ti ti-plus" style="font-size:20px"></i></button>
   </div>
   <div class="content" id="content"></div>
@@ -88,13 +88,16 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v1.0';
+const BUILD='v1.3';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
 // 部署Apps Script後填入URL
 // ═══════════════════════════════════════════════
 const SHEETS_URL = localStorage.getItem('qms_sheets_url') || 'https://script.google.com/macros/s/AKfycbxGROwcw5ZPIhG6qDap3fMcmTEf3jjEcBPiK-JBVK-Y9JoLQTp0ms1FT5bh4-wbk_Qh/exec';
+// AI Settings
+function getAISetting(k,def){return localStorage.getItem('qms_ai_'+k)||def;}
+function setAISetting(k,v){localStorage.setItem('qms_ai_'+k,v);}
 let syncTimer = null;
 let syncStatus = 'idle'; // idle | syncing | ok | error
 
@@ -141,6 +144,16 @@ async function syncToSheets() {
   setSyncStatus(result && result.saved !== undefined ? 'ok' : 'error');
 }
 
+async function manualSync() {
+  setSyncStatus('syncing');
+  const pulled = await loadFromSheets();
+  if (pulled) {
+    renderDashboard();
+    // Also push local-only cases
+    await syncToSheets();
+  }
+}
+
 function schedulSync() {
   if (!SHEETS_URL) return;
   if (syncTimer) clearTimeout(syncTimer);
@@ -149,6 +162,7 @@ function schedulSync() {
 
 function setSyncStatus(s) {
   syncStatus = s;
+  if (s === 'ok') localStorage.setItem('qms_last_sync', Date.now().toString());
   const el = document.getElementById('syncStatus');
   if (!el) return;
   const map = {idle:'', syncing:'⟳', ok:'✓', error:'⚠'};
@@ -170,6 +184,23 @@ function promptSheetsUrl() {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+// Auto-sync when app becomes visible (switching from another app/tab)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && SHEETS_URL) {
+    loadFromSheets().then(loaded => {
+      if (loaded) { renderDashboard(); }
+    });
+  }
+});
+// Also sync when window gets focus
+window.addEventListener('focus', () => {
+  if (SHEETS_URL) {
+    const last = parseInt(localStorage.getItem('qms_last_sync') || '0');
+    if (Date.now() - last > 30000) { // only if last sync >30 seconds ago
+      loadFromSheets().then(loaded => { if (loaded) renderDashboard(); });
+    }
+  }
+});
 
 const DSTEPS=['D1','D2','D3','D4','D5','D6','D7','D8'];
 const DLBLS={D1:'成立小組',D2:'問題描述',D3:'暫時對策',D4:'真因分析',D5:'永久對策',D6:'執行驗證',D7:'預防再發',D8:'結案確認'};
@@ -262,9 +293,50 @@ const CUSTOMER_VIEW_SYS=`你現在扮演客戶（廣達上海）的SQE/品保工
 const DISCUSS_SYS='你是品保顧問。D4根因未確認前禁止討論D5對策。「宣導/訓練」類對策必須反問：換新員工還會發生嗎？使用繁體中文，每段不超過3行，結尾必須有📌最需確認。';
 
 async function apiCall(sys,msgs,maxTok){
-  const r=await fetch("https://api.anthropic.com/v1/messages",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTok,system:sys,messages:msgs})});
-  const d=await r.json();
-  return(d.content?.[0]?.text||'').trim();
+  const provider=getAISetting('provider','claude');
+  if(provider==='gemini') return callGemini(sys,msgs,maxTok);
+  return callClaude(sys,msgs,maxTok);
+}
+
+async function callClaude(sys,msgs,maxTok){
+  const key=getAISetting('claude_key','');
+  if(!key) return'⚠️ 請到「⚙ 設定」輸入 Claude API Key';
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTok||1000,system:sys,messages:msgs})
+    });
+    const d=await r.json();
+    if(d.error) return'⚠️ Claude錯誤：'+d.error.message;
+    return(d.content?.[0]?.text||'').trim()||'⚠️ AI未回應';
+  }catch(e){return'⚠️ Claude連線失敗：'+e.message;}
+}
+
+async function callGemini(sys,msgs,maxTok){
+  const key=getAISetting('gemini_key','');
+  if(!key) return'⚠️ 請到「⚙ 設定」輸入 Gemini API Key';
+  try{
+    // Convert messages to Gemini format
+    const contents=msgs.map(m=>({
+      role:m.role==='assistant'?'model':'user',
+      parts:[{text:typeof m.content==='string'?m.content:m.content.map(c=>c.text||'').join('')}]
+    }));
+    if(sys) contents.unshift({role:'user',parts:[{text:sys}]},{role:'model',parts:[{text:'了解，我會依照這個角色和規則回應。'}]});
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents,generationConfig:{maxOutputTokens:maxTok||1000}})
+    });
+    const d=await r.json();
+    if(d.error) return'⚠️ Gemini錯誤：'+d.error.message;
+    return d.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||'⚠️ Gemini未回應';
+  }catch(e){return'⚠️ Gemini連線失敗：'+e.message;}
 }
 
 async function callPaste(text,imgs,ctx){
@@ -352,11 +424,11 @@ function ppmStr(c){if(c.defectCount&&c.inputCount){const p=Math.round((parseFloa
 
 // ── Navigation ─────────────────────────────────────────────
 function navigate(mod){document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));(document.getElementById('nav-'+mod)||document.getElementById('nav-dashboard')).classList.add('active');activeModule=mod;if(mod==='dashboard'){screen='dashboard';renderDashboard();}else if(mod==='complaint'){screen='list';renderList();}else if(mod==='fqc1'){screen='fqc';renderFQC();}else if(mod==='ipqc'){screen='list';renderList();}else if(mod==='yield'){screen='yield';renderYield();}else{screen='placeholder';renderPlaceholder();}updateHdr();}
-function goBack(){if(screen==='detail'||screen==='new'){if(activeModule==='fqc1'||activeModule==='fqc2'){fqcTab=activeModule;screen='fqc';renderFQC();}else{screen='list';renderList();}}else{screen='dashboard';renderDashboard();}updateHdr();}
+function goBack(){if(screen==='settings'){screen='dashboard';renderDashboard();}else if(screen==='detail'||screen==='new'){if(activeModule==='fqc1'||activeModule==='fqc2'){fqcTab=activeModule;screen='fqc';renderFQC();}else{screen='list';renderList();}}else{screen='dashboard';renderDashboard();}updateHdr();}
 function openCase(id){const c=cases.find(x=>x.id===id);if(!c)return;curId=id;activeModule=c.type;if(c.type==='fqc2')fqcTab='fqc2';else if(c.type==='fqc1')fqcTab='fqc1';screen='detail';activeTab='paste';renderDetail();updateHdr();document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));const navId=c.type==='fqc2'||c.type==='fqc1'?'nav-fqc1':'nav-'+c.type;(document.getElementById(navId)||document.getElementById('nav-complaint')).classList.add('active');}
 function updateHdr(){
   const t=document.getElementById('hdrTitle'),back=document.getElementById('btnBack'),add=document.getElementById('btnAdd');
-  const titles={dashboard:'產線異常管理',list:activeModule==='complaint'?'客訴案件':'IPQC 巡檢',fqc:'FQC 異常記錄',yield:'良率分析',placeholder:'開發中',new:activeModule==='complaint'?`新增客訴 ${formStep}/2`:activeModule==='ipqc'?'新增IPQC':activeModule==='fqc2'?'新增FQC2':'新增FQC1'};
+  const titles={dashboard:'產線異常管理',list:activeModule==='complaint'?'客訴案件':'IPQC 巡檢',fqc:'FQC 異常記錄',yield:'良率分析',placeholder:'開發中',settings:'設定',new:activeModule==='complaint'?`新增客訴 ${formStep}/2`:activeModule==='ipqc'?'新增IPQC':activeModule==='fqc2'?'新增FQC2':'新增FQC1'};
   if(screen==='detail'){t.textContent=(getCur()?.what||getCur()?.anomalyType||'案件').slice(0,18);}else t.textContent=titles[screen]||'產線異常管理';
   back.style.display=screen!=='dashboard'?'flex':'none';
   add.style.display=screen==='list'?'block':'none';
@@ -376,6 +448,7 @@ function renderDashboard(){
         <div style="display:flex;gap:6px;align-items:center">
         <span style="font-size:10px;color:#94a3b8;background:#f1f5f9;padding:2px 6px;border-radius:4px">${BUILD}</span>
         <button onclick="promptSheetsUrl()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid ${SHEETS_URL?'#16a34a':'#cbd5e1'};background:${SHEETS_URL?'#f0fdf4':'#fff'};color:${SHEETS_URL?'#16a34a':'#64748b'};cursor:pointer" title="${SHEETS_URL?'Google Sheets已連接':'點擊設定Google Sheets'}">${SHEETS_URL?'☁ 已連接':'☁ 設定同步'}</button>
+        ${SHEETS_URL?`<button onclick="manualSync()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer" title="從Google Sheets重新載入最新資料">⟳ 同步</button>`:''}
       </div>
       </div>
       ${openAll.length?`<p style="font-size:12px;color:#d97706;margin-top:6px">⚠️ ${openAll.length} 件進行中</p>`:'<p style="font-size:12px;color:#16a34a;margin-top:6px">✓ 目前無進行中案件</p>'}
@@ -707,6 +780,78 @@ function delCL(id){if(!confirm('確定刪除此項目？'))return;saveClTpl(getC
 
 
 
+
+// ── Settings Screen ───────────────────────────────────────
+function renderSettings(){
+  const p=getAISetting('provider','claude');
+  const ck=getAISetting('claude_key','');
+  const gk=getAISetting('gemini_key','');
+  document.getElementById('content').innerHTML=`
+    <div class="card" style="border-left:3px solid #1d4ed8;margin-bottom:12px">
+      <p style="font-size:15px;font-weight:500;color:#0f172a">⚙ 設定</p>
+    </div>
+
+    <div class="card" style="margin-bottom:10px">
+      <p style="font-size:13px;font-weight:500;color:#0f172a;margin-bottom:10px">🤖 AI 設定</p>
+      <label class="lbl">選擇 AI</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button onclick="setAISetting('provider','claude');renderSettings()" style="flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:500;border:${p==='claude'?'2px solid #1d4ed8':'1px solid #cbd5e1'};background:${p==='claude'?'#eff6ff':'#fff'};color:${p==='claude'?'#1d4ed8':'#64748b'}">
+          Claude<br><span style="font-size:10px;font-weight:400">Anthropic・高品質</span>
+        </button>
+        <button onclick="setAISetting('provider','gemini');renderSettings()" style="flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:500;border:${p==='gemini'?'2px solid #16a34a':'1px solid #cbd5e1'};background:${p==='gemini'?'#f0fdf4':'#fff'};color:${p==='gemini'?'#16a34a':'#64748b'}">
+          Gemini<br><span style="font-size:10px;font-weight:400">Google・免費方案</span>
+        </button>
+      </div>
+
+      <div class="field" style="${p!=='claude'?'opacity:0.5':''}">
+        <label class="lbl">Claude API Key（console.anthropic.com）</label>
+        <input class="inp" id="set_ck" type="password" value="${ck}" placeholder="sk-ant-api03-..."/>
+      </div>
+      <div class="field" style="${p!=='gemini'?'opacity:0.5':''}">
+        <label class="lbl">Gemini API Key（aistudio.google.com）</label>
+        <input class="inp" id="set_gk" type="password" value="${gk}" placeholder="AIzaSy..."/>
+      </div>
+      <button class="btn-p" style="width:100%;justify-content:center;padding:10px" onclick="saveAISettings()">儲存 AI 設定</button>
+      <div id="aiTestResult" style="font-size:12px;margin-top:8px;text-align:center;display:none"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:10px">
+      <p style="font-size:13px;font-weight:500;color:#0f172a;margin-bottom:10px">☁ Google Sheets 同步</p>
+      <div class="field">
+        <label class="lbl">Apps Script Web App URL</label>
+        <input class="inp" id="set_su" value="${SHEETS_URL||''}" placeholder="https://script.google.com/..."/>
+      </div>
+      <button class="btn-p" style="width:100%;justify-content:center;padding:10px;background:#16a34a" onclick="saveSheetsSetting()">儲存 Sheets 設定</button>
+    </div>
+
+    <div class="card" style="background:#f8fafc">
+      <p style="font-size:11px;color:#64748b;line-height:1.8">
+        <strong>取得 API Key：</strong><br>
+        Claude：console.anthropic.com → API Keys → Create Key<br>
+        Gemini：aistudio.google.com → Get API Key（免費）<br><br>
+        <strong>安全說明：</strong>Key 只存在你的手機本機，不會上傳到任何伺服器。
+      </p>
+    </div>`;
+}
+
+async function saveAISettings(){
+  const ck=document.getElementById('set_ck')?.value.trim()||'';
+  const gk=document.getElementById('set_gk')?.value.trim()||'';
+  if(ck) setAISetting('claude_key',ck);
+  if(gk) setAISetting('gemini_key',gk);
+  const msg=document.getElementById('aiTestResult');
+  msg.style.display='block';msg.style.color='#0284c7';msg.textContent='測試中...';
+  const result=await apiCall('請回覆「連接成功」',[{role:'user',content:'測試'}],50);
+  if(result.includes('⚠️')){msg.style.color='#dc2626';msg.textContent='❌ '+result;}
+  else{msg.style.color='#16a34a';msg.textContent='✅ AI連接成功！';}
+}
+
+function saveSheetsSetting(){
+  const url=document.getElementById('set_su')?.value.trim()||'';
+  if(url) localStorage.setItem('qms_sheets_url',url);
+  alert('Sheets設定已儲存，重新載入頁面生效');
+  location.reload();
+}
 // ── FQC Combined View ─────────────────────────────────────
 let fqcTab='fqc1'; // 'fqc1' or 'fqc2'
 
