@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v2.4';
+const BUILD='v2.5';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -527,14 +527,16 @@ function dBarHTML(currentD,closed){return'<div class="dbar">'+DSTEPS.map(d=>{con
 function statusBadge(c){if(c.closed)return'<span class="badge" style="background:#6b728020;color:#6b7280">已結案</span>';if(c.type==='fqc1'||c.type==='fqc2'||c.type==='ipqc'){const col=c.recurrence==='是'?'#dc2626':c.trackStatus==='closed'?'#16a34a':'#d97706';return`<span class="badge" style="background:${col}20;color:${col}">${c.type==='ipqc'&&c.recurrence==='是'?'⚠️再發':c.trackStatus==='closed'?'已結案':'追蹤中'}</span>`;}if(c.type==='yield'){const col=c.trend==='down'?'#dc2626':'#16a34a';return`<span class="badge" style="background:${col}18;color:${col}">${c.trend==='down'?'↓下降分析':'↑改善分析'}</span>`;}const col=DCOL[c.currentD]||'#94a3b8';return`<span class="badge" style="background:${col}20;color:${col}">${c.currentD} ${DLBLS[c.currentD]}</span>`;}
 function priBadge(p){const m={high:['#dc2626','高'],mid:['#d97706','中'],medium:['#d97706','中'],low:['#16a34a','低']};const[col,lbl]=m[p]||['#94a3b8','—'];return`<span class="badge" style="background:${col}18;color:${col};font-size:10px">${lbl}</span>`;}
 function dcDisplay(c){
-  const dc=c.when||c.riskBatch?.start||'-';
+  // Use first DC from 'when' field (may contain multiple like "202604、202606")
+  const raw=c.when||c.riskBatch?.start||'';
+  const dc=raw.split(/[,、，\s]+/)[0]||'-';
   const d=parseFloat(c.defectCount);
   const n=parseFloat(c.inputCount);
   if(!isNaN(d)&&d>0&&!isNaN(n)&&n>0)
-    return`${dc}(${d}/${Number(n).toLocaleString()})`;
+    return`${dc}(${Math.round(d)}/${Number(Math.round(n)).toLocaleString()})`;
   if(!isNaN(d)&&d>0)
-    return`${dc}(${d}pcs)`;
-  return dc;
+    return`${dc}(${Math.round(d)}pcs)`;
+  return dc||'-';
 }
 
 function ppmStr(c){if(c.defectCount&&c.inputCount){const p=Math.round((parseFloat(c.defectCount)/parseFloat(c.inputCount))*1000000);return`<span style="color:${p>1000?'#dc2626':p>100?'#d97706':'#16a34a'};font-weight:500">${p.toLocaleString()} ppm</span>`;}return c.defectCount?c.defectCount+' pcs':'';}
@@ -595,7 +597,13 @@ function renderList(){
     <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:12px;padding:10px" onclick="screen='new';formStep=1;formData=emptyForm();fqcForm=emptyFqcForm();activeTab='paste';renderNew();updateHdr()">
       + 新增${activeModule==='complaint'?'客訴案件':activeModule==='fqc1'?'FQC1異常':'IPQC巡檢記錄'}
     </button>
-    ${list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-wrap:wrap;margin-top:4px"><span>${esc(c.who||c.product||'—')}</span><span style="color:#334155">${dcDisplay(c)}</span>${ppmStr(c)?`<span style="margin-left:4px">${ppmStr(c)}</span>`:''}<span style="margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}</div></div>`).join('')}`;
+    ${list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:8px;font-size:11px;flex-wrap:wrap;margin-top:5px;align-items:center">
+  <span style="color:#334155;font-weight:500">${esc(c.who||c.product||'—')}</span>
+  <span style="color:#64748b">${dcDisplay(c)}</span>
+  ${ppmStr(c)||''}
+  <span style="color:#94a3b8;margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>
+  ${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626;font-weight:500">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}
+</div></div>`).join('')}`;
 }
 
 // ── New Case ───────────────────────────────────────────────
