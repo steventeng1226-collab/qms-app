@@ -19,8 +19,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 .hdr-title{flex:1;font-size:15px;font-weight:500;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .build-tag{font-size:10px;color:#94a3b8;background:#1e3a5f;padding:2px 6px;border-radius:4px;flex-shrink:0}
 .content{flex:1;padding:10px;padding-bottom:68px}
-.bnav{background:#fff;border-top:1px solid #e2e8f0;display:flex;height:56px;position:fixed;bottom:0;width:100%;max-width:430px;z-index:20}
-.navbtn{flex:1;border:none;background:none;padding:5px 2px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:9px;color:#94a3b8;border-top:2px solid transparent;font-family:inherit}
+.bnav{background:#fff;border-top:1px solid #e2e8f0;display:flex;height:52px;position:fixed;bottom:0;width:100%;max-width:430px;z-index:20;overflow-x:auto;scrollbar-width:none}
+.bnav::-webkit-scrollbar{display:none}
+.navbtn{flex:0 0 calc(100%/6);min-width:54px;border:none;background:none;padding:4px 1px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:8px;color:#94a3b8;border-top:2px solid transparent;font-family:inherit}
 .navbtn.active{color:#1d4ed8;border-top-color:#1d4ed8}
 .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:10px}
 .btn-p{border:none;background:#1d4ed8;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;display:inline-flex;align-items:center;gap:4px}
@@ -88,7 +89,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v2.7';
+const BUILD='v2.8';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -585,7 +586,33 @@ function renderDashboard(){
       </div>
     </div>
     <div class="card" style="cursor:pointer;margin-bottom:10px" onclick="navigate('yield')"><div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;align-items:center;gap:10px"><i class="ti ti-chart-bar" style="font-size:18px;color:#16a34a"></i><div><p style="font-size:13px;font-weight:500;color:#0f172a;margin:0">良率分析</p><p style="font-size:10px;color:#94a3b8;margin-top:1px">趨勢監控・雙向原因記錄</p></div></div><i class="ti ti-arrow-right" style="font-size:14px;color:#94a3b8"></i></div></div>
-    ${openAll.length?`<div class="card" style="border-left:3px solid #d97706"><p style="font-size:11px;font-weight:500;color:#64748b;margin-bottom:8px">⏰ 進行中案件</p>${openAll.slice(0,5).map(c=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f1f5f9;cursor:pointer" onclick="openCase('${c.id}')"><div style="flex:1;min-width:0;margin-right:8px"><p style="margin:0;font-size:13px;font-weight:500;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.what||c.anomalyType||'（未填）')}</p><p style="margin:1px 0 0;font-size:10px;color:#94a3b8">${esc(c.who||c.product||'—')}・${new Date(c.createdAt).toLocaleDateString('zh-TW')}</p></div>${statusBadge(c)}</div>`).join('')}</div>`:''}`;
+    ${openAll.length?`<div class="card" style="border-left:3px solid #d97706"><p style="font-size:11px;font-weight:500;color:#64748b;margin-bottom:8px">⏰ 進行中案件</p>${openAll.slice(0,5).map(c=>{
+  const typeLabel={complaint:'客訴',fqc1:'FQC1',fqc2:'FQC2',ipqc:'IPQC',yield:'良率'};
+  const typeCol={complaint:'#dc2626',fqc1:'#d97706',fqc2:'#7c3aed',ipqc:'#0891b2',yield:'#16a34a'};
+  const col=typeCol[c.type]||'#94a3b8';
+  const label=typeLabel[c.type]||c.type;
+  const subtitle=c.type==='complaint'
+    ?`${esc(c.who||'—')}・${dcDisplay(c)}`
+    :c.type==='ipqc'
+    ?`${esc(c.defectCat||'—')}・${esc(c.station||'—')}・${esc(c.wk||'—')}`
+    :c.type==='yield'
+    ?esc(c.period||c.title||'良率分析')
+    :`${esc(c.product||'—')}・${esc(c.wk||c.batch||'—')}`;
+  return`<div style="padding:9px 0;border-bottom:1px solid #f8fafc;cursor:pointer" onclick="openCase('${c.id}')">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+          <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:${col}18;color:${col}">${label}</span>
+          <p style="margin:0;font-size:13px;font-weight:500;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.what||c.anomalyType||c.title||'（未填）')}</p>
+        </div>
+        <p style="margin:0;font-size:11px;color:#64748b">${subtitle}</p>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        ${statusBadge(c)}
+        <p style="margin:3px 0 0;font-size:10px;color:#94a3b8">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</p>
+      </div>
+    </div>
+  </div>`;}).join('')}</div>`:''}`;
 }
 
 // ── Case List ──────────────────────────────────────────────
