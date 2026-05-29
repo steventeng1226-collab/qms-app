@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v2.3';
+const BUILD='v2.4';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -756,15 +756,34 @@ function renderDetail(doScroll=true){
   const photosHtml=(c.photos||[]).length?`<div style="margin-top:8px"><p style="font-size:11px;color:#64748b;margin-bottom:5px">📷 不良照片庫（${c.photos.length}張）</p><div class="photo-grid">${c.photos.map((p,i)=>`<div class="photo-thumb" onclick="viewPhoto(${i})"><img src="${p.data}" title="${p.label}"/><button class="photo-rm" onclick="event.stopPropagation();rmPhoto(${i})">×</button><p style="font-size:8px;color:#64748b;text-align:center;margin-top:2px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.label)}</p></div>`).join('')}<div style="width:64px;height:54px;border:1px dashed #cbd5e1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px" onclick="addPhoto()"><span style="font-size:14px;color:#94a3b8">+</span><span style="font-size:8px;color:#94a3b8">新增</span></div></div></div>`:`<button class="btn-g btn-sm" style="margin-top:8px" onclick="addPhoto()">📷 上傳不良照片</button>`;
 
   document.getElementById('content').innerHTML=`
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0;line-height:1.4">${esc(c.what||c.anomalyType)}</p>${statusBadge(c)}</div>
-      ${isC?dBarHTML(c.currentD,c.closed):''}${isC&&activeDPanel?renderDPanel(c,activeDPanel):''}
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:5px">
-        <p style="font-size:10px;color:#94a3b8;margin:0">${isC?`${esc(c.who)}・${dcDisplay(c)}${ppmStr(c)?' · '+ppmStr(c):''}`:c.type==='ipqc'?`${esc(c.defectCat||'')}・${esc(c.station||'')}・${esc(c.wk||'')}・${c.recurrence==='是'?'⚠️已再發':''}`:esc(c.period||c.product+'・'+c.batch)}</p>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
+    <div class="card" style="padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <p style="flex:1;font-size:15px;font-weight:600;color:#0f172a;margin:0;line-height:1.4">${esc(c.what||c.anomalyType||c.title)}</p>
+        ${statusBadge(c)}
+      </div>
+      ${isC?dBarHTML(c.currentD,c.closed):''}
+      ${isC&&activeDPanel?renderDPanel(c,activeDPanel):''}
+      ${isC?`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12px">
+        <span style="color:#94a3b8">客戶</span><span style="color:#0f172a;font-weight:500">${esc(c.who||'—')}</span>
+        <span style="color:#94a3b8">產品</span><span style="color:#0f172a">${esc(c.which||'—')}</span>
+        <span style="color:#94a3b8">DC</span><span style="color:#0f172a">${esc(c.when||'—')}</span>
+        <span style="color:#94a3b8">不良</span><span style="color:#0f172a">${dcDisplay(c)} ${ppmStr(c)||''}</span>
+        <span style="color:#94a3b8">風險批</span><span style="color:${c.riskBatch?.start?'#0f172a':'#dc2626'}">${c.riskBatch?.start?`DC${c.riskBatch.start}～${c.riskBatch.end}（${c.riskBatch.type==='continuous'?'連續':'間歇'}）`:'⚠️ 未定義'}</span>
+        <span style="color:#94a3b8">發現</span><span style="color:#0f172a">${esc(c.howDetected||'—')}</span>
+      </div>`:c.type==='ipqc'?`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12px">
+        <span style="color:#94a3b8">分類</span><span style="color:#0f172a;font-weight:500">${esc(c.defectCat||'—')}</span>
+        <span style="color:#94a3b8">站別</span><span style="color:#0f172a">${esc(c.station||'—')}</span>
+        <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
+        <span style="color:#94a3b8">責任人</span><span style="color:#0f172a">${esc(c.owner||'—')}</span>
+        <span style="color:#94a3b8">再發</span><span style="color:${c.recurrence==='是'?'#dc2626':'#16a34a'}">${c.recurrence||'—'}</span>
+      </div>`:`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12px">
+        <span style="color:#94a3b8">標題</span><span style="color:#0f172a">${esc(c.title||'—')}</span>
+        <span style="color:#94a3b8">期間</span><span style="color:#0f172a">${esc(c.period||'—')}</span>
+      </div>`}
+      <div style="display:flex;gap:5px;flex-wrap:wrap;padding-top:6px;border-top:1px solid #f1f5f9">
         ${isC&&!c.closed&&c.currentD!=='D8'?`<button class="btn-g btn-sm" onclick="advD()">推進 ${DSTEPS[DSTEPS.indexOf(c.currentD)+1]} →</button>`:''}
         ${isC?`<button onclick="switchTab('discuss');customerView()" style="padding:4px 9px;font-size:11px;border:1px solid #0891b2;background:#f0f9ff;color:#0891b2;border-radius:8px;cursor:pointer">👁 客戶視野</button>`:''}
-      </div>
+        <button onclick="addPhoto()" style="padding:4px 9px;font-size:11px;border:1px solid #cbd5e1;background:#fff;color:#64748b;border-radius:8px;cursor:pointer">📷 照片</button>
       </div>
       ${photosHtml}
     </div>
