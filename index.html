@@ -92,7 +92,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.4';
+const BUILD='v3.5';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -1140,13 +1140,10 @@ function renderKB(){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-dashboard').classList.add('active');
   const stageGroups={};
-  const QC7_IDS=['checksheet','stratification','fishbone','fivewhy','pareto','scatter','histogram','controlchart'];
-  const CPK_IDS=['cpk_concept','cp_vs_cpk','cpk_formula','cpk_threshold','cpk_sample'];
   const filteredTools=KB_TOOLS.filter(t=>{
     if(!kbFilter||kbFilter==='all')return true;
-    if(kbFilter==='qc7')return QC7_IDS.includes(t.id);
-    if(kbFilter==='cpk')return CPK_IDS.includes(t.id);
-    return true;
+    if(kbFilter==='qc7')return !t.cat||t.cat==='qc7';
+    return t.cat===kbFilter;
   });
   filteredTools.forEach(t=>{
     const key=t.stage+' '+t.stageLabel;
@@ -1160,9 +1157,8 @@ function renderKB(){
       <p style="font-size:11px;color:#93c5fd;margin-top:4px">QC七大手法・製程能力分析 Cpk・8D應用指引</p>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px">
-      <button onclick="kbFilter='all';renderKB()" style="flex-shrink:0;padding:5px 12px;border-radius:9999px;border:${!kbFilter||kbFilter==='all'?'1.5px solid #1d4ed8':'1px solid #e2e8f0'};background:${!kbFilter||kbFilter==='all'?'#eff6ff':'#fff'};color:${!kbFilter||kbFilter==='all'?'#1d4ed8':'#64748b'};font-size:12px;cursor:pointer;font-family:inherit">全部</button>
-      <button onclick="kbFilter='qc7';renderKB()" style="flex-shrink:0;padding:5px 12px;border-radius:9999px;border:${kbFilter==='qc7'?'1.5px solid #7c3aed':'1px solid #e2e8f0'};background:${kbFilter==='qc7'?'#f5f3ff':'#fff'};color:${kbFilter==='qc7'?'#7c3aed':'#64748b'};font-size:12px;cursor:pointer;font-family:inherit">🔧 QC 七大手法</button>
-      <button onclick="kbFilter='cpk';renderKB()" style="flex-shrink:0;padding:5px 12px;border-radius:9999px;border:${kbFilter==='cpk'?'1.5px solid #0891b2':'1px solid #e2e8f0'};background:${kbFilter==='cpk'?'#f0f9ff':'#fff'};color:${kbFilter==='cpk'?'#0891b2':'#64748b'};font-size:12px;cursor:pointer;font-family:inherit">📊 製程能力 Cpk</button>
+      ${[['all','全部','#1d4ed8'],['qc7','🔧 QC七大手法','#7c3aed'],['cpk','📊 Cpk','#0891b2'],['8d','🎯 8D步驟','#dc2626'],['fmea','⚠️ FMEA','#d97706'],['abbr','🔤 品保縮寫','#16a34a'],['core5','🏭 五大工具','#1e3a8a']].map(([f,l,c])=>`
+      <button onclick="kbFilter='${f}';renderKB()" style="flex-shrink:0;padding:5px 10px;border-radius:9999px;border:${kbFilter===f||(!kbFilter&&f==='all')?`1.5px solid ${c}`:'1px solid #e2e8f0'};background:${kbFilter===f||(!kbFilter&&f==='all')?c+'18':'#fff'};color:${kbFilter===f||(!kbFilter&&f==='all')?c:'#64748b'};font-size:11px;cursor:pointer;font-family:inherit;font-weight:${kbFilter===f||(!kbFilter&&f==='all')?'600':'400'}">${l}</button>`).join('')}
     </div>
     ${Object.entries(stageGroups).map(([stage,tools])=>`
       <div style="margin-bottom:14px">
@@ -1287,49 +1283,49 @@ function renderStats(){
 const KB_TOOLS=[
   {id:'checksheet',name:'查檢表',en:'Check Sheet',stage:'D2',stageLabel:'問題描述',
    icon:'📋',color:'#3b82f6',
-   what:'用表格系統性記錄不良發生的時間、地點、頻率，讓數據一目了然。',
+   cat:'qc7',what:'用表格系統性記錄不良發生的時間、地點、頻率，讓數據一目了然。',
    how:'設計欄位：時間/班別/機台/不良類型/數量 → 現場人員打勾記錄 → 彙整分析。',
    tip:'欄位不要超過5個，太複雜就沒人填。先問：我需要哪個維度的數據？',
    warning:''},
   {id:'stratification',name:'層別法',en:'Stratification',stage:'D3',stageLabel:'暫時對策',
    icon:'🔍',color:'#d97706',
-   what:'把混在一起的數據按某個維度分開，找出哪個層別有問題。',
+   cat:'qc7',what:'把混在一起的數據按某個維度分開，找出哪個層別有問題。',
    how:'常用維度：時間層別（哪個班次？）、設備層別（哪台機？）、人員層別（誰做的？）、材料層別（哪個批次？）',
    tip:'D3用層別法把風險品從良品分離：DC2604出的全hold，DC2605之後的先繼續→這就是層別。',
    warning:''},
   {id:'fishbone',name:'魚骨圖（因果圖）',en:'Cause & Effect Diagram',stage:'D4',stageLabel:'真因分析',
    icon:'🐟',color:'#7c3aed',
-   what:'以魚骨結構列出所有可能原因，防止遺漏，確保從4M1E角度全面思考。',
+   cat:'qc7',what:'以魚骨結構列出所有可能原因，防止遺漏，確保從4M1E角度全面思考。',
    how:'大骨：Man（人）/ Machine（機）/ Material（料）/ Method（法）/ Environment（環）→ 每根小骨寫可能原因。',
    tip:'魚骨圖是「列出所有懷疑」，不是「找到答案」。列完要用5-Why或實驗去驗證每條骨頭。',
    warning:'⚠️ 常見弱點：寫了「人員疏忽」就停下來，但沒追問為什麼會疏忽。'},
   {id:'fivewhy',name:'5-Why',en:'5 Whys',stage:'D4',stageLabel:'真因分析',
    icon:'❓',color:'#dc2626',
-   what:'對每個可能原因反覆問「為什麼」，直到找到可以被系統性解決的根本原因。',
+   cat:'qc7',what:'對每個可能原因反覆問「為什麼」，直到找到可以被系統性解決的根本原因。',
    how:'Why1：為什麼空焊？→ C面有異物。Why2：為什麼有異物？→ 產粉掉落。Why3：為什麼產粉掉落？→ 磁粉沒有充分固化。Why4：為什麼磁粉沒固化？→ 固化爐溫度不足。Why5：為什麼溫度不足？→ 感溫線位置錯誤，未量到產品實際溫度。',
    tip:'真正的根因有兩個特徵：1. 可以再現（刻意製造就能重現不良）2. 解決後問題消失。',
    warning:'⚠️ 最常見的弱對策陷阱：「宣導訓練員工」→ 換新員工問題還會發生嗎？如果會，根因不在人，在系統/設備/製程。'},
   {id:'pareto',name:'柏拉圖',en:'Pareto Chart',stage:'D4',stageLabel:'真因分析',
    icon:'📊',color:'#0891b2',
-   what:'用長條圖+累積折線找出「最重要的少數原因」（80/20法則）。',
+   cat:'qc7',what:'用長條圖+累積折線找出「最重要的少數原因」（80/20法則）。',
    how:'X軸：不良類型（由高到低排列）→ Y軸左：不良數量 → Y軸右：累積百分比 → 找出累積80%的前幾項優先處理。',
    tip:'客訴初期用柏拉圖找主要不良類型，不要每樣都處理，先集中火力在最大的那個。',
    warning:''},
   {id:'scatter',name:'散佈圖',en:'Scatter Diagram',stage:'D4',stageLabel:'真因分析',
    icon:'📈',color:'#16a34a',
-   what:'用點圖驗證兩個變數之間是否有相關性（例如：溫度 vs. 不良率）。',
+   cat:'qc7',what:'用點圖驗證兩個變數之間是否有相關性（例如：溫度 vs. 不良率）。',
    how:'X軸：可能的原因變數（如爐溫） → Y軸：結果（如不良率）→ 點往同方向走代表有正相關。',
    tip:'有相關性≠有因果關係。散佈圖只是「線索」，還需要實驗設計來確認因果。',
    warning:''},
   {id:'histogram',name:'直方圖',en:'Histogram',stage:'D4',stageLabel:'真因分析',
    icon:'📉',color:'#6b7280',
-   what:'把製程數據的分佈視覺化，看分佈形狀是否正常、是否超出規格界限。',
+   cat:'qc7',what:'把製程數據的分佈視覺化，看分佈形狀是否正常、是否超出規格界限。',
    how:'將測量數據分組 → 畫出各組的頻率長條 → 與規格上下限（USL/LSL）比較。',
    tip:'正常製程：鐘形分佈、居中、不超出規格。如果分佈偏一側或雙峰，代表製程可能混了兩個來源。',
    warning:''},
   {id:'controlchart',name:'管制圖',en:'Control Chart',stage:'D6',stageLabel:'效果確認',
    icon:'📐',color:'#1d4ed8',
-   what:'監控製程隨時間的變化，判斷製程是否穩定（在管制界限內）。',
+   cat:'qc7',what:'監控製程隨時間的變化，判斷製程是否穩定（在管制界限內）。',
    how:'計算UCL（上管制界限）和LCL（下管制界限）→ 連續點落在界限外或有特殊排列型態 → 發出異常訊號。',
    tip:'D6用管制圖驗證對策效果：改善前後的製程均值和變異是否有顯著改善？',
    warning:''},
@@ -1338,34 +1334,150 @@ const KB_TOOLS=[
   // ── Cpk 製程能力 ─────────────────────────────────────
   {id:'cpk_concept',name:'Cpk 是什麼',en:'Process Capability Index',stage:'D6',stageLabel:'效果確認',
    icon:'🚗',color:'#0891b2',
-   what:'衡量製程能力的指標，不只要「準」（產品落在規格內），還要「穩」（每次都不出界）。就像把車停進車庫：車要夠窄（分布集中），也要停在正中間（不偏移）。',
+   cat:'cpk',what:'衡量製程能力的指標，不只要「準」（產品落在規格內），還要「穩」（每次都不出界）。就像把車停進車庫：車要夠窄（分布集中），也要停在正中間（不偏移）。',
    how:'LSL（規格下限）= 車庫左牆；USL（規格上限）= 車庫右牆；鐘形曲線 = 你實際生產的產品尺寸分布。Cpk 同時考慮分布寬度和中心偏移，兩者都好才算真的好。',
    tip:'D6效果確認時用Cpk驗證：改善前後Cpk從0.8提升到1.4，就是有數據支撐的對策有效證明。',
    warning:''},
   {id:'cp_vs_cpk',name:'Cp 與 Cpk 的差異',en:'Cp vs Cpk',stage:'D6',stageLabel:'效果確認',
    icon:'⚖️',color:'#7c3aed',
-   what:'Cp只看分布有多寬（潛在能力），不管有沒有偏心。Cpk同時看寬度和偏移（實際能力）。',
+   cat:'cpk',what:'Cp只看分布有多寬（潛在能力），不管有沒有偏心。Cpk同時看寬度和偏移（實際能力）。',
    how:'Cp = (USL-LSL)/(6σ)：只看規格寬度能塞幾個標準差，忽略平均值位置。Cpk = min((USL-μ)/3σ, (μ-LSL)/3σ)：取「距離最近的牆」來算分，更真實。',
    tip:'Cp好但Cpk差 = 車子夠窄但停歪了，還是會刮牆。要兩個都好，Cp≥Cpk，兩者差距越小代表製程越居中。',
    warning:'⚠️ 只報告Cp不報Cpk是常見的「美化數據」手法。永遠要同時看Cpk。'},
   {id:'cpk_formula',name:'Cpk 計算公式',en:'Cpk Formula',stage:'D4',stageLabel:'真因分析',
    icon:'📐',color:'#dc2626',
-   what:'Cpk = min((USL−μ)÷3σ, (μ−LSL)÷3σ)，取兩邊中距離規格界限較近的那個來打分。',
+   cat:'cpk',what:'Cpk = min((USL−μ)÷3σ, (μ−LSL)÷3σ)，取兩邊中距離規格界限較近的那個來打分。',
    how:'μ（過程平均值）= 實際生產產品的平均位置。σ（標準差）= 數據的散布程度，越小越穩定。評分邏輯：平均值離天花板(USL)和地板(LSL)哪邊更近，就用那邊除以3σ打分，分數越高製程越靠譜。',
    tip:'手動計算：收集≥32筆數據 → 算平均值μ → 算標準差σ → 代公式。Excel用STDEV()算σ，兩邊各算一次取小值。',
    warning:'⚠️ 數據少於32筆，算出的Cpk不可信！樣本太少抓不到機器的「正常波動」，也發現不了「特殊原因」。'},
   {id:'cpk_threshold',name:'為什麼門檻是 1.33',en:'Why Cpk ≥ 1.33',stage:'D6',stageLabel:'效果確認',
    icon:'🎯',color:'#16a34a',
-   what:'Cpk = 1.33 嚴格對應 ±4σ 水平，是IATF16949、ISO及客戶普遍認可的量產門檻。',
+   cat:'cpk',what:'Cpk = 1.33 嚴格對應 ±4σ 水平，是IATF16949、ISO及客戶普遍認可的量產門檻。',
    how:'Cpk=1.00 → ±3σ → 66,807 ppm（每百萬件6.7萬件不良）。Cpk=1.33 → ±4σ → 63.3 ppm（每百萬件63件不良）。Cpk=1.67 → ±5σ → 0.57 ppm。從1.0→1.33，不良率降低1,000倍以上。',
    tip:'1.33不是純數學強制，是工業界應對現實世界「不確定性」共同約定的安全線。預留安全餘量用於：刀具磨損、材料波動、設備老化、換班誤差。',
    warning:'⚠️ Cpk < 1.0 = 危險駕駛（隨時可能掉下懸崖）。客戶通常要求Cpk ≥ 1.33 才允許量產。車規客戶（IATF16949）要求更嚴，部分關鍵尺寸要求Cpk ≥ 1.67。'},
   {id:'cpk_sample',name:'為什麼最少需要 32 筆數據',en:'Sample Size for Cpk',stage:'D4',stageLabel:'真因分析',
    icon:'📊',color:'#d97706',
-   what:'數據太少，算出的Cpk是假的、極度不可信。樣本不足時，你抓不到機器的「正常波動」，也看不出「特殊原因」。',
+   cat:'cpk',what:'數據太少，算出的Cpk是假的、極度不可信。樣本不足時，你抓不到機器的「正常波動」，也看不出「特殊原因」。',
    how:'行業慣例（IATF16949/六大工具）：初始過程能力 Ppk：≥ 20~30 個數據。長期過程能力 Cpk：必須連續 ≥ 32~50 個數據。很多企業系統直接規定：數據少於32個 → Cpk直接判無效。',
    tip:'32筆是最低門檻，50~100筆更可靠。數據要代表真實生產狀態：跨班次、跨材料批次、連續時間段採樣，不能挑好的量。',
    warning:'⚠️ 紅色規則：Cpk < 32筆數據 = 直接無效，不得用於量產判定。這是業界硬規定，不是建議。'}
+
+  // ── 8D 各步驟說明 ────────────────────────────────────
+  ,{id:'8d_d1',name:'D1 成立跨功能小組',en:'Form the Team',stage:'D1',stageLabel:'成立小組',
+   icon:'👥',color:'#6b7280',cat:'8d',
+   what:'指定8D負責人（通常是品保或製造主管），組建具備必要專業的跨功能小組，確保有足夠資源和決策權。',
+   how:'小組至少包含：品保（QE）、製造/產線（ME/PE）、業務/客服（Sales/CS）。有需要時加入：採購、供應商、設計。明確分工：誰負責分析？誰對接客戶？誰執行對策？',
+   tip:'D1最常見的失敗：組長不清楚、成員沒有決策權、沒有時間投入。8D要能推進，負責人必須有權調動資源。',
+   warning:''},
+  {id:'8d_d2',name:'D2 問題描述（5W2H）',en:'Describe the Problem',stage:'D2',stageLabel:'問題描述',
+   icon:'📝',color:'#3b82f6',cat:'8d',
+   what:'用5W2H格式把問題說清楚：What（什麼問題）、Where（哪裡發現）、When（什麼時候）、Which（哪個產品/批次）、Who（哪個客戶）、How Many（幾個不良/PPM）、How Detected（怎麼發現的）。',
+   how:'範例：What=空焊 / Where=客戶SMT線ICT站 / When=2026/5/16 / Which=MAT-04BZE DC202604 / Who=廣達上海 / How Many=4pcs / How Detected=FA+AOI。同時定義風險批範圍：起始DC、結束DC、類型（連續/間歇）、暫定處置（hold/篩選/正常出貨）。',
+   tip:'D2是整個8D的地基。描述越精確，後面越不容易跑偏。「空焊」不夠精確；「C面左端子空焊，電阻無限大，ICT失效碼L1021」才夠精確。',
+   warning:'⚠️ 風險批未定義 = D3無法執行。D2必須給出風險批，哪怕是暫定的。'},
+  {id:'8d_d3',name:'D3 暫時圍堵措施',en:'Containment Actions',stage:'D3',stageLabel:'暫時對策',
+   icon:'🚧',color:'#d97706',cat:'8d',
+   what:'在根因找到之前，立即阻止不良品繼續流到客戶手上。是「止血」不是「治病」。',
+   how:'客戶端：隔離風險批、停線評估、提供替換品。廠內端：庫存全數hold、WIP標示、外檢機100%導入。供應鏈：HUB庫存確認、在途貨物追蹤。留底樣品：綁定DC/LC，送FA分析。',
+   tip:'D3的核心問題：「現在有沒有不良品在流到客戶手上？」如果答案是「不確定」，就要假設有，立刻圍堵。速度比完美更重要。',
+   warning:'⚠️ D3是暫時措施，不等於根因找到了。很多公司D3做完就沒了，客訴3個月後再度發生。'},
+  {id:'8d_d4',name:'D4 根本原因分析',en:'Root Cause Analysis',stage:'D4',stageLabel:'真因分析',
+   icon:'🔬',color:'#7c3aed',cat:'8d',
+   what:'找到「發生原因」（為什麼會產生不良）和「流出原因」（為什麼不良品沒被攔截）。兩個都要解決，否則D5對策不完整。',
+   how:'工具組合：魚骨圖列出所有懷疑 → 5-Why深挖每個懷疑 → 散佈圖/實驗驗證相關性 → 再現性驗證：能刻意製造出不良 + 對策後不良消失。兩個都符合才算真因確認。',
+   tip:'驗證標準（缺一不可）：①再現性：刻意製造不良成功。②消除性：採取對策後不良消失。只有①沒②，可能只找到誘發條件。只有②沒①，可能是巧合。',
+   warning:'⚠️ D4未確認不得進入D5！D4是整個8D最重要的步驟，也是最容易跳過的。「宣導訓練」≠ 根因。'},
+  {id:'8d_d5',name:'D5 永久改善對策',en:'Permanent Corrective Actions',stage:'D5',stageLabel:'永久對策',
+   icon:'🔧',color:'#dc2626',cat:'8d',
+   what:'針對D4確認的根因，制定系統性的防錯對策，確保問題不再發生。要同時解決「發生原因」和「流出原因」。',
+   how:'好的對策特徵：防錯機制（Poka-Yoke）>警告機制>程序修訂>人員培訓。範例：發生對策=改用鋁盤單顆擺放（物理防止堆疊）。流出對策=感溫線連同產品過爐（確保實際溫度正確）。',
+   tip:'對策評估三問：①換新員工這問題還會發生嗎？②機器壞掉或設定跑掉時，有沒有自動偵測？③對策有沒有被寫入SOP/CP/FMEA？三個都要是「不會/有/有」。',
+   warning:'⚠️ 「加強宣導」「提醒員工注意」不是對策，是藉口。真正的對策要讓人「不可能做錯」。'},
+  {id:'8d_d6',name:'D6 執行與效果驗證',en:'Implement & Verify',stage:'D6',stageLabel:'執行驗證',
+   icon:'✅',color:'#0891b2',cat:'8d',
+   what:'將D5對策實際執行到生產線上，並用數據驗證對策確實有效，不良率已降低到可接受水平。',
+   how:'驗證方式：生產驗證批次（通常≥1000pcs）→量測關鍵尺寸/參數 → 計算改善前後Cpk → 管制圖追蹤穩定性。數據要涵蓋跨班次、跨材料批次，確保代表性。',
+   tip:'D6的關鍵交付物：改善前vs改善後的數據對比。Cpk從0.8→1.45，不良率從1200ppm→45ppm，這才是有說服力的對策驗證。',
+   warning:''},
+  {id:'8d_d7',name:'D7 預防再發',en:'Prevent Recurrence',stage:'D7',stageLabel:'預防再發',
+   icon:'🛡️',color:'#16a34a',cat:'8d',
+   what:'更新管理系統確保這個問題永遠不再發生，並將教訓水平展開到相似的製程和產品。',
+   how:'更新文件：FMEA（新增失效模式和對策）、Control Plan（新增管制項目和頻率）、SOP/作業指導書。水平展開：列出相似製程/產品清單 → 逐一確認是否有相同風險 → 預防性導入對策。',
+   tip:'水平展開是D7最容易被跳過的部分。「我們只改了這一條線」而沒有確認其他線，等於問題可能從另一個地方再冒出來。',
+   warning:'⚠️ FMEA/CP/SOP沒更新 = D7形式大於實質。客戶審廠時最常查D7的落實程度。'},
+  {id:'8d_d8',name:'D8 結案與認可',en:'Closure & Recognition',stage:'D8',stageLabel:'結案確認',
+   icon:'🏆',color:'#1e3a8a',cat:'8d',
+   what:'客戶確認接受8D報告和改善結果，正式結案。同時內部表揚小組貢獻，將經驗記錄入知識庫。',
+   how:'結案前確認：客戶已收到並接受8D報告、D6驗證數據客戶已審閱、D7文件更新完成、後續追蹤計畫明確。客戶確認方式：Email回覆、簽核報告、或CAR（Corrective Action Request）正式關閉。',
+   tip:'8D報告品質決定客戶信任度。好的8D報告：根因清楚有驗證數據、對策有針對性且系統化、水平展開明確、後續追蹤計畫具體。',
+   warning:'⚠️ 客戶沒有正式確認不算結案。「我們認為改好了」≠「客戶接受了」。'},
+
+  // ── FMEA 基礎 ─────────────────────────────────────────
+  {id:'fmea_what',name:'FMEA 是什麼',en:'Failure Mode & Effects Analysis',stage:'D7',stageLabel:'預防再發',
+   icon:'⚙️',color:'#7c3aed',cat:'fmea',
+   what:'Failure Mode and Effects Analysis（失效模式與效應分析）。在問題發生前，系統性找出所有可能的失效模式，評估風險等級，提前導入預防措施。',
+   how:'兩種主要類型：DFMEA（設計FMEA）= 產品設計階段，分析設計缺陷風險。PFMEA（製程FMEA）= 製程設計階段，分析生產過程失效風險。YAGEO主要用PFMEA。',
+   tip:'FMEA不是一次性文件，是「活的」工具。每次發生客訴或新問題，D7必須更新FMEA，加入新的失效模式和對策。',
+   warning:'⚠️ FMEA最常見的問題：做了放著不更新。幾年前的FMEA沒有反映最新的製程變化，形同虛設。'},
+  {id:'fmea_rpn',name:'RPN 風險優先數',en:'Risk Priority Number',stage:'D4',stageLabel:'真因分析',
+   icon:'🔢',color:'#dc2626',cat:'fmea',
+   what:'RPN = 嚴重度（S）× 發生率（O）× 偵測度（D）。三個維度各評1~10分，RPN越高代表風險越大，越需要優先採取行動。',
+   how:'S（Severity）：失效對客戶的影響有多嚴重？10=安全/法規問題，1=無影響。O（Occurrence）：失效發生的頻率？10=頻繁，1=幾乎不可能。D（Detection）：在出貨前能偵測到的機率？10=幾乎無法偵測，1=肯定能偵測。',
+   tip:'優先改善：①S=9~10的項目（無論RPN多少，安全問題絕對要處理）。②RPN≥100的項目。③S×O≥16的項目。不要只看RPN總分，S=10的低RPN比S=5的高RPN更危險。',
+   warning:'⚠️ RPN下降不代表風險真的降低。如果只靠加強偵測（D分降低）來降RPN，問題還是會發生，只是被抓到了。真正的改善要降O（減少發生）。'},
+
+  // ── 常用品保縮寫 ──────────────────────────────────────
+  {id:'abbr_basic',name:'基本統計縮寫',en:'Basic Statistical Terms',stage:'D4',stageLabel:'真因分析',
+   icon:'🔤',color:'#0891b2',cat:'abbr',
+   what:'製程分析最常用的統計術語，理解這些才能看懂品質報告和SPC圖。',
+   how:'μ（Mu）= 過程平均值，σ（Sigma）= 標準差（散布程度）。USL = Upper Spec Limit（規格上限），LSL = Lower Spec Limit（規格下限）。UCL = Upper Control Limit（管制上限，通常= μ+3σ），LCL = Lower Control Limit（管制下限，= μ−3σ）。注意區分：規格界限（客戶要求）vs 管制界限（製程自然波動），不是同一件事！',
+   tip:'規格界限 ≠ 管制界限。規格是客戶定的（外部）；管制界限是製程數據算出來的（內部）。產品在管制界限內但超出規格 = 製程能力不足（Cpk<1）。',
+   warning:''},
+  {id:'abbr_ppm',name:'PPM / DPPM / Yield',en:'Defect Rate Metrics',stage:'D2',stageLabel:'問題描述',
+   icon:'📉',color:'#dc2626',cat:'abbr',
+   what:'PPM = Parts Per Million（百萬分之一）= 每百萬件中有幾件不良。是最常用的不良率單位，取代百分比（%）讓小數字更直觀。',
+   how:'PPM = (不良數 / 總數) × 1,000,000。例：50000件中3件不良 = 60 PPM。DPPM（Defective PPM）= 以不良品計算。Yield（良率）= (1 − PPM/1,000,000) × 100%。參考值：客訴目標通常 < 50 PPM；車規客戶可能要求 < 10 PPM；六西格瑪 = 3.4 PPM。',
+   tip:'報告給客戶時用PPM，數字小且直觀。0.006%聽起來很少，但=60 PPM，對車規客戶是高風險數字。',
+   warning:''},
+  {id:'abbr_quality',name:'品保流程縮寫',en:'Quality Process Abbreviations',stage:'D1',stageLabel:'成立小組',
+   icon:'📋',color:'#16a34a',cat:'abbr',
+   what:'日常工作中常見的品保流程與文件縮寫，快速查閱對照。',
+   how:'8D = 8 Disciplines（8步驟問題解決方法）。CAR = Corrective Action Request（改善要求）。SQE = Supplier Quality Engineer（供應商品質工程師，客戶端審核我們的人）。FA = Failure Analysis（失效分析）。MSA = Measurement System Analysis（量測系統分析）。GR&R = Gauge Repeatability & Reproducibility（量具重複性與再現性）。SPC = Statistical Process Control（統計製程管制）。OOC = Out Of Control（失控，管制圖警示）。PPAP = Production Part Approval Process（量產零件核准程序）。CP = Control Plan（控制計劃）。',
+   tip:'SQE最重要：他代表客戶審查我們的品質系統和8D報告。每次客訴處理，最終都要讓SQE滿意才能結案。',
+   warning:''},
+
+  // ── 核心五大工具 (IATF16949) ──────────────────────────
+  {id:'core5_apqp',name:'APQP 先期產品品質規劃',en:'Advanced Product Quality Planning',stage:'D7',stageLabel:'預防再發',
+   icon:'📅',color:'#1d4ed8',cat:'core5',
+   what:'在新產品或製程變更之前，系統性規劃品質活動的流程。目的是在問題發生之前就預防它，而不是出貨後再補救。',
+   how:'五個階段：①規劃與定義 → ②產品設計驗證 → ③製程設計驗證 → ④產品與製程驗證 → ⑤回饋/評估/改善。每個階段有對應的輸出文件（DFMEA、PFMEA、CP、MSA研究等）。',
+   tip:'APQP的核心理念：「事先規劃」比「事後補救」便宜100倍。一個客訴的處理成本（人力+換貨+信任損失）遠超過APQP的預防投入。',
+   warning:''},
+  {id:'core5_ppap',name:'PPAP 生產零件批准程序',en:'Production Part Approval Process',stage:'D7',stageLabel:'預防再發',
+   icon:'📑',color:'#7c3aed',cat:'core5',
+   what:'客戶正式批准供應商的生產件之前，必須提交的一套文件和樣品。證明供應商有能力穩定生產符合規格的產品。',
+   how:'PPAP通常包含18項（按客戶要求選擇）：設計文件、PFMEA、CP、量測系統分析、初始製程能力研究（Cpk）、合格樣品、外觀核准報告等。PPAP等級1~5，等級越高提交文件越多。',
+   tip:'Cpk是PPAP的核心：客戶通常要求關鍵尺寸Cpk≥1.33，且基於≥30個連續樣品計算。PPAP一旦批准，製程不能任意變更，否則需要重新提交。',
+   warning:'⚠️ PPAP批准 ≠ 永遠不出問題。批准後製程發生變化（換模具/換材料/換供應商）必須重新申請，否則是違約。'},
+  {id:'core5_fmea',name:'FMEA 失效模式與效應分析',en:'Failure Mode & Effects Analysis',stage:'D4',stageLabel:'真因分析',
+   icon:'⚠️',color:'#dc2626',cat:'core5',
+   what:'核心五大工具之一。系統性識別潛在失效模式、評估風險（RPN）、並制定預防措施。是PPAP必交文件，也是8D D7更新的主要對象。',
+   how:'PFMEA（製程FMEA）填寫要點：製程步驟 → 可能失效模式 → 失效效應（對客戶影響） → 嚴重度S → 潛在原因 → 發生率O → 現行管制 → 偵測度D → RPN → 建議措施。',
+   tip:'PFMEA和Control Plan要連動：CP的管制項目應該涵蓋FMEA中高RPN的項目。FMEA是「為什麼要管制」，CP是「如何管制」。',
+   warning:''},
+  {id:'core5_cp',name:'Control Plan 控制計畫',en:'Control Plan',stage:'D6',stageLabel:'執行驗證',
+   icon:'📊',color:'#0891b2',cat:'core5',
+   what:'詳細說明如何在量產中管制關鍵的產品和製程特性，確保符合客戶要求。是生產現場的品質管制藍圖。',
+   how:'CP包含：製程步驟、管制項目、規格/公差、量測方法、量測頻率、反應計畫（超出管制限時怎麼辦）。三個階段：原型CP → 試產CP → 量產CP，要隨製程成熟度更新。',
+   tip:'D7更新CP是8D最重要的交付物之一。客訴根因確認後，必須在CP上新增對應管制項目，否則同樣問題遲早再發。',
+   warning:''},
+  {id:'core5_msa',name:'MSA 量測系統分析',en:'Measurement System Analysis',stage:'D4',stageLabel:'真因分析',
+   icon:'📏',color:'#16a34a',cat:'core5',
+   what:'評估量測系統的可靠性：同一個人量同一個零件，每次量的結果是否一致（重複性）？不同人量同一個零件，結果是否一致（再現性）？GR&R是MSA的核心分析。',
+   how:'GR&R標準：量測系統變異 < 10% = 可接受。10%~30% = 邊界，需要評估是否改善。>30% = 不可接受，量測系統本身有問題，不能信賴數據。Cpk數據的可信度取決於GR&R是否通過。',
+   tip:'品質問題調查時，先確認量測系統沒問題。如果GR&R > 30%，你看到的「製程波動」可能只是量測誤差，根本沒有真正的製程問題。',
+   warning:'⚠️ 量測系統沒做GR&R就報告Cpk，數字完全不可信。這是品質工程的基本功，卻經常被跳過。'}
 
 ];
 
