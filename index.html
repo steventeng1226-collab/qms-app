@@ -92,7 +92,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.3';
+const BUILD='v3.4';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -1140,7 +1140,15 @@ function renderKB(){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
   document.getElementById('nav-dashboard').classList.add('active');
   const stageGroups={};
-  KB_TOOLS.forEach(t=>{
+  const QC7_IDS=['checksheet','stratification','fishbone','fivewhy','pareto','scatter','histogram','controlchart'];
+  const CPK_IDS=['cpk_concept','cp_vs_cpk','cpk_formula','cpk_threshold','cpk_sample'];
+  const filteredTools=KB_TOOLS.filter(t=>{
+    if(!kbFilter||kbFilter==='all')return true;
+    if(kbFilter==='qc7')return QC7_IDS.includes(t.id);
+    if(kbFilter==='cpk')return CPK_IDS.includes(t.id);
+    return true;
+  });
+  filteredTools.forEach(t=>{
     const key=t.stage+' '+t.stageLabel;
     if(!stageGroups[key])stageGroups[key]=[];
     stageGroups[key].push(t);
@@ -1148,8 +1156,13 @@ function renderKB(){
 
   document.getElementById('content').innerHTML=`
     <div class="card" style="background:linear-gradient(135deg,#0f2744,#1d4ed8);border:none;margin-bottom:12px">
-      <p style="font-size:15px;font-weight:600;color:#fff;margin:0">📚 QC 七大手法</p>
-      <p style="font-size:11px;color:#93c5fd;margin-top:4px">8D各階段應用指引・點擊任一手法查看說明</p>
+      <p style="font-size:15px;font-weight:600;color:#fff;margin:0">📚 品質管理知識庫</p>
+      <p style="font-size:11px;color:#93c5fd;margin-top:4px">QC七大手法・製程能力分析 Cpk・8D應用指引</p>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px">
+      <button onclick="kbFilter='all';renderKB()" style="flex-shrink:0;padding:5px 12px;border-radius:9999px;border:${!kbFilter||kbFilter==='all'?'1.5px solid #1d4ed8':'1px solid #e2e8f0'};background:${!kbFilter||kbFilter==='all'?'#eff6ff':'#fff'};color:${!kbFilter||kbFilter==='all'?'#1d4ed8':'#64748b'};font-size:12px;cursor:pointer;font-family:inherit">全部</button>
+      <button onclick="kbFilter='qc7';renderKB()" style="flex-shrink:0;padding:5px 12px;border-radius:9999px;border:${kbFilter==='qc7'?'1.5px solid #7c3aed':'1px solid #e2e8f0'};background:${kbFilter==='qc7'?'#f5f3ff':'#fff'};color:${kbFilter==='qc7'?'#7c3aed':'#64748b'};font-size:12px;cursor:pointer;font-family:inherit">🔧 QC 七大手法</button>
+      <button onclick="kbFilter='cpk';renderKB()" style="flex-shrink:0;padding:5px 12px;border-radius:9999px;border:${kbFilter==='cpk'?'1.5px solid #0891b2':'1px solid #e2e8f0'};background:${kbFilter==='cpk'?'#f0f9ff':'#fff'};color:${kbFilter==='cpk'?'#0891b2':'#64748b'};font-size:12px;cursor:pointer;font-family:inherit">📊 製程能力 Cpk</button>
     </div>
     ${Object.entries(stageGroups).map(([stage,tools])=>`
       <div style="margin-bottom:14px">
@@ -1320,9 +1333,43 @@ const KB_TOOLS=[
    how:'計算UCL（上管制界限）和LCL（下管制界限）→ 連續點落在界限外或有特殊排列型態 → 發出異常訊號。',
    tip:'D6用管制圖驗證對策效果：改善前後的製程均值和變異是否有顯著改善？',
    warning:''},
+
+,
+  // ── Cpk 製程能力 ─────────────────────────────────────
+  {id:'cpk_concept',name:'Cpk 是什麼',en:'Process Capability Index',stage:'D6',stageLabel:'效果確認',
+   icon:'🚗',color:'#0891b2',
+   what:'衡量製程能力的指標，不只要「準」（產品落在規格內），還要「穩」（每次都不出界）。就像把車停進車庫：車要夠窄（分布集中），也要停在正中間（不偏移）。',
+   how:'LSL（規格下限）= 車庫左牆；USL（規格上限）= 車庫右牆；鐘形曲線 = 你實際生產的產品尺寸分布。Cpk 同時考慮分布寬度和中心偏移，兩者都好才算真的好。',
+   tip:'D6效果確認時用Cpk驗證：改善前後Cpk從0.8提升到1.4，就是有數據支撐的對策有效證明。',
+   warning:''},
+  {id:'cp_vs_cpk',name:'Cp 與 Cpk 的差異',en:'Cp vs Cpk',stage:'D6',stageLabel:'效果確認',
+   icon:'⚖️',color:'#7c3aed',
+   what:'Cp只看分布有多寬（潛在能力），不管有沒有偏心。Cpk同時看寬度和偏移（實際能力）。',
+   how:'Cp = (USL-LSL)/(6σ)：只看規格寬度能塞幾個標準差，忽略平均值位置。Cpk = min((USL-μ)/3σ, (μ-LSL)/3σ)：取「距離最近的牆」來算分，更真實。',
+   tip:'Cp好但Cpk差 = 車子夠窄但停歪了，還是會刮牆。要兩個都好，Cp≥Cpk，兩者差距越小代表製程越居中。',
+   warning:'⚠️ 只報告Cp不報Cpk是常見的「美化數據」手法。永遠要同時看Cpk。'},
+  {id:'cpk_formula',name:'Cpk 計算公式',en:'Cpk Formula',stage:'D4',stageLabel:'真因分析',
+   icon:'📐',color:'#dc2626',
+   what:'Cpk = min((USL−μ)÷3σ, (μ−LSL)÷3σ)，取兩邊中距離規格界限較近的那個來打分。',
+   how:'μ（過程平均值）= 實際生產產品的平均位置。σ（標準差）= 數據的散布程度，越小越穩定。評分邏輯：平均值離天花板(USL)和地板(LSL)哪邊更近，就用那邊除以3σ打分，分數越高製程越靠譜。',
+   tip:'手動計算：收集≥32筆數據 → 算平均值μ → 算標準差σ → 代公式。Excel用STDEV()算σ，兩邊各算一次取小值。',
+   warning:'⚠️ 數據少於32筆，算出的Cpk不可信！樣本太少抓不到機器的「正常波動」，也發現不了「特殊原因」。'},
+  {id:'cpk_threshold',name:'為什麼門檻是 1.33',en:'Why Cpk ≥ 1.33',stage:'D6',stageLabel:'效果確認',
+   icon:'🎯',color:'#16a34a',
+   what:'Cpk = 1.33 嚴格對應 ±4σ 水平，是IATF16949、ISO及客戶普遍認可的量產門檻。',
+   how:'Cpk=1.00 → ±3σ → 66,807 ppm（每百萬件6.7萬件不良）。Cpk=1.33 → ±4σ → 63.3 ppm（每百萬件63件不良）。Cpk=1.67 → ±5σ → 0.57 ppm。從1.0→1.33，不良率降低1,000倍以上。',
+   tip:'1.33不是純數學強制，是工業界應對現實世界「不確定性」共同約定的安全線。預留安全餘量用於：刀具磨損、材料波動、設備老化、換班誤差。',
+   warning:'⚠️ Cpk < 1.0 = 危險駕駛（隨時可能掉下懸崖）。客戶通常要求Cpk ≥ 1.33 才允許量產。車規客戶（IATF16949）要求更嚴，部分關鍵尺寸要求Cpk ≥ 1.67。'},
+  {id:'cpk_sample',name:'為什麼最少需要 32 筆數據',en:'Sample Size for Cpk',stage:'D4',stageLabel:'真因分析',
+   icon:'📊',color:'#d97706',
+   what:'數據太少，算出的Cpk是假的、極度不可信。樣本不足時，你抓不到機器的「正常波動」，也看不出「特殊原因」。',
+   how:'行業慣例（IATF16949/六大工具）：初始過程能力 Ppk：≥ 20~30 個數據。長期過程能力 Cpk：必須連續 ≥ 32~50 個數據。很多企業系統直接規定：數據少於32個 → Cpk直接判無效。',
+   tip:'32筆是最低門檻，50~100筆更可靠。數據要代表真實生產狀態：跨班次、跨材料批次、連續時間段採樣，不能挑好的量。',
+   warning:'⚠️ 紅色規則：Cpk < 32筆數據 = 直接無效，不得用於量產判定。這是業界硬規定，不是建議。'}
+
 ];
 
-let kbSelected=null;
+let kbSelected=null;let kbFilter='all';
 // ── Settings Screen ───────────────────────────────────────
 function renderSettings(){
   const p=getAISetting('provider','claude');
