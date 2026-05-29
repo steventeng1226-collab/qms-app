@@ -88,7 +88,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v2.5';
+const BUILD='v2.7';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -542,12 +542,12 @@ function dcDisplay(c){
 function ppmStr(c){if(c.defectCount&&c.inputCount){const p=Math.round((parseFloat(c.defectCount)/parseFloat(c.inputCount))*1000000);return`<span style="color:${p>1000?'#dc2626':p>100?'#d97706':'#16a34a'};font-weight:500">${p.toLocaleString()} ppm</span>`;}return c.defectCount?c.defectCount+' pcs':'';}
 
 // ── Navigation ─────────────────────────────────────────────
-function navigate(mod){document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));(document.getElementById('nav-'+mod)||document.getElementById('nav-dashboard')).classList.add('active');activeModule=mod;if(mod==='dashboard'){screen='dashboard';renderDashboard();}else if(mod==='complaint'){screen='list';renderList();}else if(mod==='fqc1'){screen='fqc';renderFQC();}else if(mod==='ipqc'){screen='list';renderList();}else if(mod==='yield'){screen='yield';renderYield();}else if(mod==='stats'){screen='stats';renderStats();}else{screen='placeholder';renderPlaceholder();}updateHdr();}
-function goBack(){if(screen==='settings'||screen==='stats'){screen='dashboard';renderDashboard();}else if(screen==='detail'||screen==='new'){if(activeModule==='fqc1'||activeModule==='fqc2'){fqcTab=activeModule;screen='fqc';renderFQC();}else{screen='list';renderList();}}else{screen='dashboard';renderDashboard();}updateHdr();}
+function navigate(mod){document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));(document.getElementById('nav-'+mod)||document.getElementById('nav-dashboard')).classList.add('active');activeModule=mod;if(mod==='dashboard'){screen='dashboard';renderDashboard();}else if(mod==='complaint'){screen='list';renderList();}else if(mod==='fqc1'){screen='fqc';renderFQC();}else if(mod==='ipqc'){screen='list';renderList();}else if(mod==='yield'){screen='yield';renderYield();}else if(mod==='stats'){screen='stats';renderStats();}else if(mod==='kb'){screen='kb';kbSelected=null;renderKB();document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));document.getElementById('nav-kb').classList.add('active');return;}else{screen='placeholder';renderPlaceholder();}updateHdr();}
+function goBack(){if(screen==='settings'||screen==='stats'||screen==='kb'){screen='dashboard';renderDashboard();}else if(screen==='detail'||screen==='new'){if(activeModule==='fqc1'||activeModule==='fqc2'){fqcTab=activeModule;screen='fqc';renderFQC();}else{screen='list';renderList();}}else{screen='dashboard';renderDashboard();}updateHdr();}
 function openCase(id){const c=cases.find(x=>x.id===id);if(!c)return;curId=id;activeModule=c.type;if(c.type==='fqc2')fqcTab='fqc2';else if(c.type==='fqc1')fqcTab='fqc1';screen='detail';activeTab='paste';renderDetail();updateHdr();document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));const navId=c.type==='fqc2'||c.type==='fqc1'?'nav-fqc1':'nav-'+c.type;(document.getElementById(navId)||document.getElementById('nav-complaint')).classList.add('active');}
 function updateHdr(){
   const t=document.getElementById('hdrTitle'),back=document.getElementById('btnBack'),add=document.getElementById('btnAdd');
-  const titles={dashboard:'產線異常管理',list:activeModule==='complaint'?'客訴案件':'IPQC 巡檢',fqc:'FQC 異常記錄',yield:'良率分析',stats:'月份一覽表',placeholder:'開發中',settings:'設定',new:activeModule==='complaint'?`新增客訴 ${formStep}/2`:activeModule==='ipqc'?'新增IPQC':activeModule==='fqc2'?'新增FQC2':'新增FQC1'};
+  const titles={dashboard:'產線異常管理',list:activeModule==='complaint'?'客訴案件':'IPQC 巡檢',fqc:'FQC 異常記錄',yield:'良率分析',stats:'月份一覽表',kb:'知識庫 · QC七大手法',placeholder:'開發中',settings:'設定',new:activeModule==='complaint'?`新增客訴 ${formStep}/2`:activeModule==='ipqc'?'新增IPQC':activeModule==='fqc2'?'新增FQC2':'新增FQC1'};
   if(screen==='detail'){t.textContent=(getCur()?.what||getCur()?.anomalyType||'案件').slice(0,18);}else t.textContent=titles[screen]||'產線異常管理';
   back.style.display=screen!=='dashboard'?'flex':'none';
   add.style.display=screen==='list'?'block':'none';
@@ -811,7 +811,15 @@ function renderTab(c){if(activeTab==='paste')return renderPasteTab(c);if(activeT
 function renderPasteTab(c){
   const msgs=c.messages||[];
   return`<div>
-    <div class="info-tip">📥 <strong>持續更新：</strong>有新的email、會議討論、調查結果，直接貼入下方，AI自動更新時程、待確認事項和根因評估。</div>
+    <div class="info-tip">
+      <p style="font-size:12px;font-weight:600;color:#0284c7;margin:0 0 6px">📥 持續更新貼入區</p>
+      <p style="font-size:12px;color:#0f172a;line-height:1.7;margin:0">
+        ✉️ <strong>Email文字</strong>：直接複製整封email文字貼入<br>
+        📝 <strong>會議記錄</strong>：會議結論、行動項目<br>
+        🔬 <strong>分析結果</strong>：EDX數據、外觀描述、測量數值<br>
+        📊 <strong>調查進度</strong>：任何文字形式的更新<br>
+        <span style="color:#d97706">⚠️ 盡量貼文字，少貼圖片（圖片消耗較多AI額度）</span>
+      </p></div>
     ${msgs.length===0&&!isLoading?'<div style="text-align:center;padding:16px"><p style="color:#94a3b8;font-size:13px">還沒有記錄</p></div>':''}
     ${msgs.map(m=>`<div style="display:flex;flex-direction:column;align-items:${m.role==='user'?'flex-end':'flex-start'};margin-bottom:10px">
       ${m.images?.length?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;justify-content:${m.role==='user'?'flex-end':'flex-start'}">${m.images.map(img=>`<img src="${img}" style="max-width:100px;max-height:80px;border-radius:6px"/>`).join('')}</div>`:''}
@@ -823,7 +831,8 @@ function renderPasteTab(c){
     ${!c.closed?`<div class="card" style="margin-bottom:0;margin-top:4px">
       <div id="imgPreview" class="img-prev" style="display:none"></div>
       <div style="display:flex;gap:6px;align-items:flex-end">
-        <textarea id="chatInput" class="inp" rows="2" style="flex:1;resize:none" placeholder="貼入email文字・Ctrl+V截圖・描述進展..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPaste();}"></textarea>
+        <textarea id="chatInput" class="inp" rows="2" style="flex:1;resize:none" placeholder="貼入email文字、會議記錄、分析結果、調查進度...
+（文字優先，圖片會消耗較多AI額度）" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPaste();}"></textarea>
         <div style="display:flex;flex-direction:column;gap:4px">
           <button class="btn-g" style="padding:7px 9px" onclick="document.getElementById('fileInput').click()">⬆</button>
           <button class="btn-p" style="padding:7px 9px" onclick="sendPaste()">→</button>
@@ -938,6 +947,61 @@ function delCL(id){if(!confirm('確定刪除此項目？'))return;saveClTpl(getC
 
 
 
+
+function renderKB(){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('nav-dashboard').classList.add('active');
+  const stageGroups={};
+  KB_TOOLS.forEach(t=>{
+    const key=t.stage+' '+t.stageLabel;
+    if(!stageGroups[key])stageGroups[key]=[];
+    stageGroups[key].push(t);
+  });
+
+  document.getElementById('content').innerHTML=`
+    <div class="card" style="background:linear-gradient(135deg,#0f2744,#1d4ed8);border:none;margin-bottom:12px">
+      <p style="font-size:15px;font-weight:600;color:#fff;margin:0">📚 QC 七大手法</p>
+      <p style="font-size:11px;color:#93c5fd;margin-top:4px">8D各階段應用指引・點擊任一手法查看說明</p>
+    </div>
+    ${Object.entries(stageGroups).map(([stage,tools])=>`
+      <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="background:#1d4ed8;color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px">${stage}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${tools.map(t=>`
+            <div onclick="kbSelected=kbSelected==='${t.id}'?null:'${t.id}';renderKB()" style="background:#fff;border:1.5px solid ${kbSelected===t.id?t.color:'#e2e8f0'};border-radius:10px;padding:11px 13px;cursor:pointer;transition:border-color .15s">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:${kbSelected===t.id?'10px':'0'}">
+                <span style="font-size:20px">${t.icon}</span>
+                <div style="flex:1">
+                  <p style="font-size:13px;font-weight:600;color:${t.color};margin:0">${t.name}</p>
+                  <p style="font-size:10px;color:#94a3b8;margin:0">${t.en}</p>
+                </div>
+                <span style="font-size:12px;color:#94a3b8">${kbSelected===t.id?'▲':'▼'}</span>
+              </div>
+              ${kbSelected===t.id?`
+                <div style="border-top:1px solid ${t.color}22;padding-top:10px">
+                  <div style="margin-bottom:8px">
+                    <p style="font-size:11px;font-weight:600;color:#64748b;margin:0 0 3px">📌 是什麼</p>
+                    <p style="font-size:13px;color:#0f172a;line-height:1.6;margin:0">${t.what}</p>
+                  </div>
+                  <div style="margin-bottom:8px">
+                    <p style="font-size:11px;font-weight:600;color:#64748b;margin:0 0 3px">🔧 怎麼用</p>
+                    <p style="font-size:13px;color:#334155;line-height:1.6;margin:0">${t.how}</p>
+                  </div>
+                  <div style="background:${t.color}10;border-left:3px solid ${t.color};padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:${t.warning?'8px':'0'}">
+                    <p style="font-size:12px;color:${t.color};font-weight:500;margin:0 0 2px">💡 實戰提示</p>
+                    <p style="font-size:12px;color:#334155;line-height:1.6;margin:0">${t.tip}</p>
+                  </div>
+                  ${t.warning?`<div style="background:#fef2f2;border-left:3px solid #dc2626;padding:8px 10px;border-radius:0 6px 6px 0;margin-top:6px">
+                    <p style="font-size:12px;color:#dc2626;line-height:1.6;margin:0">${t.warning}</p>
+                  </div>`:''}
+                </div>
+              `:''}
+            </div>`).join('')}
+        </div>
+      </div>`).join('')}`;
+}
 // ── Monthly Statistics ────────────────────────────────────
 let statsMonth = null; // selected month for drill-down
 
@@ -1018,6 +1082,59 @@ function renderStats(){
         </div>`:''}
       </div>`;}).join('')}`;
 }
+
+const KB_TOOLS=[
+  {id:'checksheet',name:'查檢表',en:'Check Sheet',stage:'D2',stageLabel:'問題描述',
+   icon:'📋',color:'#3b82f6',
+   what:'用表格系統性記錄不良發生的時間、地點、頻率，讓數據一目了然。',
+   how:'設計欄位：時間/班別/機台/不良類型/數量 → 現場人員打勾記錄 → 彙整分析。',
+   tip:'欄位不要超過5個，太複雜就沒人填。先問：我需要哪個維度的數據？',
+   warning:''},
+  {id:'stratification',name:'層別法',en:'Stratification',stage:'D3',stageLabel:'暫時對策',
+   icon:'🔍',color:'#d97706',
+   what:'把混在一起的數據按某個維度分開，找出哪個層別有問題。',
+   how:'常用維度：時間層別（哪個班次？）、設備層別（哪台機？）、人員層別（誰做的？）、材料層別（哪個批次？）',
+   tip:'D3用層別法把風險品從良品分離：DC2604出的全hold，DC2605之後的先繼續→這就是層別。',
+   warning:''},
+  {id:'fishbone',name:'魚骨圖（因果圖）',en:'Cause & Effect Diagram',stage:'D4',stageLabel:'真因分析',
+   icon:'🐟',color:'#7c3aed',
+   what:'以魚骨結構列出所有可能原因，防止遺漏，確保從4M1E角度全面思考。',
+   how:'大骨：Man（人）/ Machine（機）/ Material（料）/ Method（法）/ Environment（環）→ 每根小骨寫可能原因。',
+   tip:'魚骨圖是「列出所有懷疑」，不是「找到答案」。列完要用5-Why或實驗去驗證每條骨頭。',
+   warning:'⚠️ 常見弱點：寫了「人員疏忽」就停下來，但沒追問為什麼會疏忽。'},
+  {id:'fivewhy',name:'5-Why',en:'5 Whys',stage:'D4',stageLabel:'真因分析',
+   icon:'❓',color:'#dc2626',
+   what:'對每個可能原因反覆問「為什麼」，直到找到可以被系統性解決的根本原因。',
+   how:'Why1：為什麼空焊？→ C面有異物。Why2：為什麼有異物？→ 產粉掉落。Why3：為什麼產粉掉落？→ 磁粉沒有充分固化。Why4：為什麼磁粉沒固化？→ 固化爐溫度不足。Why5：為什麼溫度不足？→ 感溫線位置錯誤，未量到產品實際溫度。',
+   tip:'真正的根因有兩個特徵：1. 可以再現（刻意製造就能重現不良）2. 解決後問題消失。',
+   warning:'⚠️ 最常見的弱對策陷阱：「宣導訓練員工」→ 換新員工問題還會發生嗎？如果會，根因不在人，在系統/設備/製程。'},
+  {id:'pareto',name:'柏拉圖',en:'Pareto Chart',stage:'D4',stageLabel:'真因分析',
+   icon:'📊',color:'#0891b2',
+   what:'用長條圖+累積折線找出「最重要的少數原因」（80/20法則）。',
+   how:'X軸：不良類型（由高到低排列）→ Y軸左：不良數量 → Y軸右：累積百分比 → 找出累積80%的前幾項優先處理。',
+   tip:'客訴初期用柏拉圖找主要不良類型，不要每樣都處理，先集中火力在最大的那個。',
+   warning:''},
+  {id:'scatter',name:'散佈圖',en:'Scatter Diagram',stage:'D4',stageLabel:'真因分析',
+   icon:'📈',color:'#16a34a',
+   what:'用點圖驗證兩個變數之間是否有相關性（例如：溫度 vs. 不良率）。',
+   how:'X軸：可能的原因變數（如爐溫） → Y軸：結果（如不良率）→ 點往同方向走代表有正相關。',
+   tip:'有相關性≠有因果關係。散佈圖只是「線索」，還需要實驗設計來確認因果。',
+   warning:''},
+  {id:'histogram',name:'直方圖',en:'Histogram',stage:'D4',stageLabel:'真因分析',
+   icon:'📉',color:'#6b7280',
+   what:'把製程數據的分佈視覺化，看分佈形狀是否正常、是否超出規格界限。',
+   how:'將測量數據分組 → 畫出各組的頻率長條 → 與規格上下限（USL/LSL）比較。',
+   tip:'正常製程：鐘形分佈、居中、不超出規格。如果分佈偏一側或雙峰，代表製程可能混了兩個來源。',
+   warning:''},
+  {id:'controlchart',name:'管制圖',en:'Control Chart',stage:'D6',stageLabel:'效果確認',
+   icon:'📐',color:'#1d4ed8',
+   what:'監控製程隨時間的變化，判斷製程是否穩定（在管制界限內）。',
+   how:'計算UCL（上管制界限）和LCL（下管制界限）→ 連續點落在界限外或有特殊排列型態 → 發出異常訊號。',
+   tip:'D6用管制圖驗證對策效果：改善前後的製程均值和變異是否有顯著改善？',
+   warning:''},
+];
+
+let kbSelected=null;
 // ── Settings Screen ───────────────────────────────────────
 function renderSettings(){
   const p=getAISetting('provider','claude');
