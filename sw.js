@@ -1,9 +1,12 @@
-// QMS Service Worker v1.7
-const CACHE = 'qms-v2.0';
-const ASSETS = ['./index.html', './manifest.json'];
+// QMS Service Worker - Network First + Offline Support
+// index.html 使用 network-first，更新不需要改此檔案
+
+const CACHE = 'qms-static-v1';
+const PRECACHE = ['./index.html', './icon-192.png', './icon-512.png', './manifest.json'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  // Pre-cache everything including index.html for offline support
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));
   self.skipWaiting();
 });
 
@@ -15,11 +18,27 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('script.google.com') ||
-      e.request.url.includes('anthropic.com') ||
-      e.request.url.includes('googleapis.com')) {
-    return; // Never cache API calls
+  const url = e.request.url;
+
+  // API calls: never cache
+  if (url.includes('script.google.com') ||
+      url.includes('anthropic.com') ||
+      url.includes('googleapis.com')) return;
+
+  // index.html: network first → always fresh when online, cached when offline
+  if (url.endsWith('/') || url.includes('index.html')) {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
   }
+
+  // Static assets: cache first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
