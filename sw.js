@@ -1,5 +1,5 @@
 // QMS Service Worker v1.7
-const CACHE = 'qms-v1.8';
+const CACHE = 'qms-v2.0';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
