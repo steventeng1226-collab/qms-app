@@ -78,17 +78,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
   </div>
   <div class="content" id="content"></div>
   <nav class="bnav">
-    <button class="navbtn active" id="nav-dashboard" onclick="navigate('dashboard')"><i class="ti ti-home" style="font-size:18px"></i><span>主控台</span></button>
-    <button class="navbtn" id="nav-complaint" onclick="navigate('complaint')"><i class="ti ti-bell" style="font-size:18px"></i><span>客訴</span></button>
-    <button class="navbtn" id="nav-fqc1" onclick="fqcTab='fqc1';navigate('fqc1')"><i class="ti ti-eye" style="font-size:18px"></i><span>FQC1</span></button>
-    <button class="navbtn" id="nav-ipqc" onclick="navigate('ipqc')"><i class="ti ti-refresh" style="font-size:18px"></i><span>IPQC</span></button>
-    <button class="navbtn" id="nav-yield" onclick="navigate('yield')"><i class="ti ti-chart-bar" style="font-size:18px"></i><span>良率</span></button>
+    <button class="navbtn active" id="nav-dashboard" onclick="navigate('dashboard')"><i class="ti ti-home" style="font-size:17px"></i><span>主控台</span></button>
+    <button class="navbtn" id="nav-complaint" onclick="navigate('complaint')"><i class="ti ti-bell" style="font-size:17px"></i><span>客訴</span></button>
+    <button class="navbtn" id="nav-fqc1" onclick="fqcTab='fqc1';navigate('fqc1')"><i class="ti ti-eye" style="font-size:17px"></i><span>FQC</span></button>
+    <button class="navbtn" id="nav-ipqc" onclick="navigate('ipqc')"><i class="ti ti-refresh" style="font-size:17px"></i><span>IPQC</span></button>
+    <button class="navbtn" id="nav-yield" onclick="navigate('yield')"><i class="ti ti-chart-bar" style="font-size:17px"></i><span>良率</span></button>
+    <button class="navbtn" id="nav-kb" onclick="navigate('kb')"><span style="font-size:15px;line-height:1">📚</span><span>知識庫</span></button>
   </nav>
 </div>
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v2.9';
+const BUILD='v3.0';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
