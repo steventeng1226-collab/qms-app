@@ -92,12 +92,13 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v3.9';
+const BUILD='v4.2';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
 // 部署Apps Script後填入URL
 // ═══════════════════════════════════════════════
+const USER_NAME = localStorage.getItem('qms_user_name') || '';
 const SHEETS_URL = localStorage.getItem('qms_sheets_url') || 'https://script.google.com/macros/s/AKfycbxGROwcw5ZPIhG6qDap3fMcmTEf3jjEcBPiK-JBVK-Y9JoLQTp0ms1FT5bh4-wbk_Qh/exec';
 // AI Settings
 function getAISetting(k,def){return localStorage.getItem('qms_ai_'+k)||def;}
@@ -355,6 +356,16 @@ let activeTab='paste',formStep=1,formData=emptyForm(),fqcForm=emptyFqcForm();
 let pasteImgs=[],isLoading=false,photoLabel='不良品外觀';
 
 function save(scheduleSync=true){localStorage.setItem('qms_cases',JSON.stringify(cases));if(scheduleSync)schedulSync();}
+let _pendingUpserts=new Set();
+function markForUpsert(id){_pendingUpserts.add(id);}
+async function upsertPending(){
+  if(!SHEETS_URL||_pendingUpserts.size===0)return;
+  for(const id of _pendingUpserts){
+    const c=cases.find(x=>x.id===id);
+    if(c)await sheetsPost({action:'upsert',case:c});
+  }
+  _pendingUpserts.clear();
+}
 function genId(){return(activeModule==='fqc1'?'F':'C')+Date.now().toString(36).toUpperCase();}
 function fmt(ts){if(!ts)return'';const d=new Date(ts);return`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
 function getCur(){return cases.find(c=>c.id===curId);}
@@ -612,13 +623,14 @@ function renderDashboard(){
   const typeCol={complaint:'#dc2626',fqc1:'#d97706',fqc2:'#7c3aed',ipqc:'#0891b2',yield:'#16a34a'};
   const col=typeCol[c.type]||'#94a3b8';
   const label=typeLabel[c.type]||c.type;
-  const subtitle=c.type==='complaint'
+  const byStr=c.createdBy?` · ${esc(c.createdBy)}`:'';const subtitle=c.type==='complaint'
     ?`${esc(c.who||'—')}・${dcDisplay(c)}`
     :c.type==='ipqc'
     ?`${esc(c.defectCat||'—')}・${esc(c.station||'—')}・${esc(c.wk||'—')}`
     :c.type==='yield'
     ?esc(c.period||c.title||'良率分析')
     :`${esc(c.product||'—')}・${esc(c.wk||c.batch||'—')}`;
+  const fullSub=subtitle+(c.createdBy?` ・ ${esc(c.createdBy)}`:'');
   return`<div style="padding:9px 0;border-bottom:1px solid #f8fafc;cursor:pointer" onclick="openCase('${c.id}')">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
       <div style="flex:1;min-width:0">
@@ -626,7 +638,7 @@ function renderDashboard(){
           <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:3px;background:${col}18;color:${col}">${label}</span>
           <p style="margin:0;font-size:13px;font-weight:500;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.what||c.anomalyType||c.title||'（未填）')}</p>
         </div>
-        <p style="margin:0;font-size:11px;color:#64748b">${subtitle}</p>
+        <p style="margin:0;font-size:11px;color:#64748b">${fullSub||subtitle}</p>
       </div>
       <div style="text-align:right;flex-shrink:0">
         ${statusBadge(c)}
@@ -721,7 +733,7 @@ function renderStep2(){
 async function submitComplaint(){
   formData.riskStart=document.getElementById('f_rS')?.value.trim()||'';
   formData.riskEnd=document.getElementById('f_rE')?.value.trim()||'';
-  const nc={id:genId(),type:'complaint',createdAt:Date.now(),currentD:'D1',closed:false,what:formData.what,where:formData.where,when:formData.when,which:formData.which,who:formData.who,defectCount:formData.defectCount,inputCount:formData.inputCount,howDetected:formData.howDetected,riskBatch:{start:formData.riskStart,end:formData.riskEnd,type:formData.riskType,action:formData.riskAction},photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
+  const nc={id:genId(),type:'complaint',createdAt:Date.now(),createdBy:USER_NAME||'未知',currentD:'D1',closed:false,what:formData.what,where:formData.where,when:formData.when,which:formData.which,who:formData.who,defectCount:formData.defectCount,inputCount:formData.inputCount,howDetected:formData.howDetected,riskBatch:{start:formData.riskStart,end:formData.riskEnd,type:formData.riskType,action:formData.riskAction},photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
   cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='paste';renderDetail();updateHdr();
   const pStr=nc.defectCount&&nc.inputCount?Math.round((parseFloat(nc.defectCount)/parseFloat(nc.inputCount))*1e6)+' ppm':nc.defectCount?nc.defectCount+' pcs':'未知';
   const rStr=nc.riskBatch.start?`風險批DC${nc.riskBatch.start}～${nc.riskBatch.end}`:'風險批未定義';
@@ -801,7 +813,7 @@ async function submitFqc(){
   const g=k=>document.getElementById('ff_'+k)?.value.trim()||'';
   Object.assign(fqcForm,{wk:g('wk'),date:g('date'),series:g('series'),product:g('product'),batch:g('batch'),anomalyType:g('anomalyType'),anomalyDetail:document.getElementById('ff_detail')?.value.trim()||'',inspCount:g('insp'),defectCount:g('def'),defectRate:g('rate'),owner:g('owner')});
   if(!fqcForm.product||!fqcForm.anomalyType){alert('請填寫產品料號和異常項目');return;}
-  const nc={id:genId(),type:activeModule==='fqc2'?'fqc2':'fqc1',createdAt:Date.now(),closed:false,trackStatus:'tracking',wk:fqcForm.wk,date:fqcForm.date,series:fqcForm.series,product:fqcForm.product,batch:fqcForm.batch,anomalyType:fqcForm.anomalyType,anomalyDetail:fqcForm.anomalyDetail,owner:fqcForm.owner,inspCount:fqcForm.inspCount,defectCount:fqcForm.defectCount,defectRate:fqcForm.defectRate,handling:fqcForm.handling,rootCause:document.getElementById('ff_cause')?.value.trim()||'',countermeasure:document.getElementById('ff_action')?.value.trim()||'',recurrence:fqcForm.recurrence||'否',photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
+  const nc={id:genId(),type:activeModule==='fqc2'?'fqc2':'fqc1',createdAt:Date.now(),createdBy:USER_NAME||'未知',closed:false,trackStatus:'tracking',wk:fqcForm.wk,date:fqcForm.date,series:fqcForm.series,product:fqcForm.product,batch:fqcForm.batch,anomalyType:fqcForm.anomalyType,anomalyDetail:fqcForm.anomalyDetail,owner:fqcForm.owner,inspCount:fqcForm.inspCount,defectCount:fqcForm.defectCount,defectRate:fqcForm.defectRate,handling:fqcForm.handling,rootCause:document.getElementById('ff_cause')?.value.trim()||'',countermeasure:document.getElementById('ff_action')?.value.trim()||'',recurrence:fqcForm.recurrence||'否',photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
   cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='paste';renderDetail();updateHdr();
   const fqcWeakCm=nc.countermeasure&&/宣導|訓練|教育|注意|提醒|培訓/.test(nc.countermeasure);await doPaste((nc.type==='fqc2'?'FQC2':'FQC1')+'異常：'+nc.anomalyType+' | '+nc.product+' | '+nc.batch+' | 抽'+nc.inspCount+'不良'+nc.defectCount+' | 處理：'+nc.handling+(nc.rootCause?' | 原因：'+nc.rootCause:'')+(nc.countermeasure?' | 對策：'+nc.countermeasure:'')+(nc.recurrence==='是'?' | ⚠️已再發':''),[],nc);}
 
@@ -1494,6 +1506,15 @@ function renderSettings(){
     </div>
 
     <div class="card" style="margin-bottom:10px">
+      <div class="card" style="margin-bottom:10px">
+      <p style="font-size:13px;font-weight:500;color:#0f172a;margin-bottom:10px">👤 使用者設定</p>
+      <div class="field">
+        <label class="lbl">你的姓名（顯示在案件上，讓Steven知道誰填的）</label>
+        <input class="inp" id="set_uname" value="${esc(USER_NAME)}" placeholder="例：張顯武 / David Zhou"/>
+      </div>
+      <button class="btn-p" style="width:100%;justify-content:center;padding:9px" onclick="saveUserName()">儲存姓名</button>
+    </div>
+    <div class="card" style="margin-bottom:10px">
       <p style="font-size:13px;font-weight:500;color:#0f172a;margin-bottom:10px">🤖 AI 設定</p>
       <label class="lbl">選擇 AI</label>
       <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -1532,6 +1553,11 @@ function renderSettings(){
       <button class="btn-p" style="width:100%;justify-content:center;padding:10px;background:#16a34a" onclick="saveSheetsSetting()">儲存 Sheets 設定</button>
     </div>
 
+    <div class="card" style="background:#fef2f2;border-color:#fecaca;margin-bottom:10px">
+      <p style="font-size:12px;font-weight:500;color:#0f172a;margin-bottom:8px">🔐 存取管理</p>
+      <p style="font-size:11px;color:#64748b;margin-bottom:10px">登入身份：<strong>${getSession()?.name||'未知'}</strong>・到期：${getSession()?.expires?new Date(getSession().expires).toLocaleDateString('zh-TW'):'—'}</p>
+      <button onclick="if(confirm('確定要登出？需要重新輸入存取碼才能使用。'))clearSession()" style="width:100%;padding:8px;border:1px solid #dc2626;background:#fff;color:#dc2626;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit">登出（清除本機存取記錄）</button>
+    </div>
     <div class="card" style="background:#f8fafc">
       <p style="font-size:11px;color:#64748b;line-height:1.8">
         <strong>取得 API Key：</strong><br>
@@ -1540,6 +1566,12 @@ function renderSettings(){
         <strong>安全說明：</strong>Key 只存在你的手機本機，不會上傳到任何伺服器。
       </p>
     </div>`;
+}
+
+function saveUserName(){
+  const name=document.getElementById('set_uname')?.value.trim()||'';
+  if(name){localStorage.setItem('qms_user_name',name);location.reload();}
+  else{alert('請輸入姓名');}
 }
 
 async function saveAISettings(){
@@ -1758,7 +1790,7 @@ async function submitOPR(){
     longTermAction:getOPRField('op_la'),longTermOwner:getOPRField('op_lo'),longTermDate:getOPRField('op_ld')
   };
   if(!f.item||!f.description){alert('請填寫品項/問題點和問題敘述');return;}
-  const nc={id:'O'+Date.now().toString(36).toUpperCase(),type:'opr',createdAt:Date.now(),closed:false,
+  const nc={id:'O'+Date.now().toString(36).toUpperCase(),type:'opr',createdAt:Date.now(),createdBy:USER_NAME||'未知',closed:false,
     ...f,what:f.description,who:f.bu,when:f.occurTime?f.occurTime.slice(0,10):'',
     photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
   cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='info';oprForm=emptyOPR();
@@ -1911,7 +1943,7 @@ async function submitIpqc(){
   Object.assign(ipqcForm,{wk:g('wk'),auditDate:g('date'),ref:g('ref'),station:g('station'),defectItem:g('item'),owner:g('owner'),rootCause:g('cause'),countermeasure:g('action'),dueDate:g('due')});
   if(!ipqcForm.defectCat){alert('請選擇缺失分類');return;}
   if(!ipqcForm.station||!ipqcForm.defectItem){alert('請填寫站別和缺失項目');return;}
-  const nc={id:genId(),type:'ipqc',createdAt:Date.now(),closed:false,trackStatus:'tracking',
+  const nc={id:genId(),type:'ipqc',createdAt:Date.now(),createdBy:USER_NAME||'未知',closed:false,trackStatus:'tracking',
     wk:ipqcForm.wk,auditDate:ipqcForm.auditDate,ref:ipqcForm.ref,defectCat:ipqcForm.defectCat,
     station:ipqcForm.station,defectItem:ipqcForm.defectItem,owner:ipqcForm.owner,
     rootCause:ipqcForm.rootCause,countermeasure:ipqcForm.countermeasure,dueDate:ipqcForm.dueDate,
@@ -2038,11 +2070,93 @@ AI評估：${c.aiAssessment||'尚未評估'}
 function renderPlaceholder(){const labels={ipqc:'IPQC 巡檢查核',yield:'良率分析',fqc2:'FQC2 測包'};document.getElementById('content').innerHTML=`<div class="card" style="text-align:center;padding:56px 24px"><p style="font-size:40px">⚙️</p><p style="font-size:15px;font-weight:500;color:#0f172a;margin-top:16px">${labels[activeModule]||activeModule}</p><p style="font-size:13px;color:#94a3b8;margin-top:8px">Phase 3 開發中</p></div>`;}
 
 // ── Init ───────────────────────────────────────────────────
+
+// ── Access Control ────────────────────────────────────────
+const SESSION_KEY='qms_session';
+const SESSION_EXP=30*24*3600*1000;
+
+function getSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null');}catch{return null;}}
+function hasValidSession(){const s=getSession();return!!(s&&s.expires>Date.now()&&s.name&&s.validated);}
+function clearSession(){localStorage.removeItem(SESSION_KEY);location.reload();}
+function saveSession(name){localStorage.setItem(SESSION_KEY,JSON.stringify({name,validated:true,expires:Date.now()+SESSION_EXP,ts:Date.now()}));}
+
+async function validateAccessCode(code,name){
+  if(!SHEETS_URL){toast('請先設定 Apps Script URL（⚙️ 設定）','warn');return false;}
+  try{
+    const r=await sheetsPost({action:'validateAccess',code,name,device:navigator.userAgent.slice(0,60)});
+    return r&&r.ok===true;
+  }catch(e){toast('連線失敗','error');return false;}
+}
+
+function showAccessGate(){
+  document.getElementById('hdr').style.display='none';
+  document.querySelector('.bnav').style.display='none';
+  let gate=document.getElementById('accessGate');
+  if(!gate){gate=document.createElement('div');gate.id='accessGate';document.body.appendChild(gate);}
+  gate.style.cssText='position:fixed;inset:0;background:#0f2744;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;flex-direction:column';
+  gate.innerHTML=`
+    <div style="background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:320px;text-align:center">
+      <div style="font-size:48px;margin-bottom:8px">🏭</div>
+      <p style="font-size:18px;font-weight:700;color:#0f2744;margin:0 0 4px">品質管理系統</p>
+      <p style="font-size:12px;color:#94a3b8;margin:0 0 24px">YAGEO Vietnam QMS</p>
+      <div style="text-align:left;margin-bottom:10px">
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:500">您的姓名</label>
+        <input id="gate_name" class="inp" placeholder="輸入您的姓名" style="font-size:14px;padding:10px"/>
+      </div>
+      <div style="text-align:left;margin-bottom:18px">
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:500">存取碼（向管理員申請）</label>
+        <input id="gate_code" class="inp" type="password" placeholder="••••••" style="font-size:18px;letter-spacing:3px;text-align:center;padding:10px" onkeydown="if(event.key==='Enter')submitGate()"/>
+      </div>
+      <button id="gateBtn" onclick="submitGate()" style="width:100%;padding:12px;background:#1d4ed8;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">進入系統</button>
+      <p id="gate_err" style="color:#dc2626;font-size:12px;margin-top:8px;min-height:16px"></p>
+      <p style="font-size:10px;color:#cbd5e1;margin-top:12px">未授權請勿使用</p>
+    </div>
+    ${!SHEETS_URL?`<button onclick="bootstrapSetup()" style="margin-top:16px;padding:8px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit">⚙️ 首次設定 URL</button>`:''}`;
+}
+
+async function submitGate(){
+  const name=(document.getElementById('gate_name')?.value||'').trim();
+  const code=(document.getElementById('gate_code')?.value||'').trim();
+  const err=document.getElementById('gate_err');
+  if(!name){err.textContent='請輸入姓名';return;}
+  if(!code){err.textContent='請輸入存取碼';return;}
+  if(!SHEETS_URL){err.textContent='請先設定 Apps Script URL';return;}
+  err.textContent='';
+  const btn=document.getElementById('gateBtn');
+  btn.textContent='驗證中...';btn.disabled=true;
+  const ok=await validateAccessCode(code,name);
+  if(ok){
+    saveSession(name);
+    localStorage.setItem('qms_user_name',name);
+    document.getElementById('accessGate').remove();
+    document.getElementById('hdr').style.display='';
+    document.querySelector('.bnav').style.display='';
+    renderDashboard();updateHdr();
+    if(SHEETS_URL)loadFromSheets().then(()=>safeRerender());
+    toast('✅ 歡迎，'+name);
+  }else{
+    btn.textContent='進入系統';btn.disabled=false;
+    err.textContent='存取碼錯誤，請聯絡管理員';
+  }
+}
+
+function bootstrapSetup(){
+  const url=prompt('請輸入 Apps Script Web App URL：');
+  if(url&&url.startsWith('https://')){localStorage.setItem('qms_sheets_url',url);location.reload();}
+}
+
 document.querySelectorAll('.build-tag').forEach(el=>el.textContent=BUILD);
-renderDashboard();updateHdr();
-// Load from Google Sheets on startup
-if(SHEETS_URL){loadFromSheets().then(loaded=>{if(loaded){safeRerender();setSyncStatus('ok');}});}
-else{setSyncStatus('idle');}
+// Check session first
+if(!hasValidSession()){
+  // Hide main UI until authenticated
+  document.getElementById('hdr').style.display='none';
+  document.querySelector('.bnav').style.display='none';
+  showAccessGate();
+}else{
+  renderDashboard();updateHdr();
+  if(SHEETS_URL){loadFromSheets().then(loaded=>{if(loaded){safeRerender();setSyncStatus('ok');}});}
+  else{setSyncStatus('idle');}
+}
 </script>
 </body>
 </html>
