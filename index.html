@@ -94,7 +94,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v5.2';
+const BUILD='v5.3';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -638,7 +638,11 @@ function renderDashboard(){
         <div style="display:flex;gap:6px;align-items:center">
         <span style="font-size:10px;color:#94a3b8;background:#f1f5f9;padding:2px 6px;border-radius:4px">${BUILD}</span>
         <button onclick="promptSheetsUrl()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid ${SHEETS_URL?'#16a34a':'#cbd5e1'};background:${SHEETS_URL?'#f0fdf4':'#fff'};color:${SHEETS_URL?'#16a34a':'#64748b'};cursor:pointer" title="${SHEETS_URL?'Google Sheets已連接':'點擊設定Google Sheets'}">${SHEETS_URL?'☁ 已連接':'☁ 設定同步'}</button>
-        ${SHEETS_URL?`<button onclick="manualSync()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer">⟳ 同步</button> <button onclick="pushAllToSheets()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #16a34a;background:#f0fdf4;color:#16a34a;cursor:pointer">↑ 推送</button> <button onclick="diagSheets()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;cursor:pointer">🔍 診斷</button>`:''}
+        ${SHEETS_URL?`<button onclick="manualSync()" style="font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #3b82f6;background:#eff6ff;color:#1d4ed8;cursor:pointer">⟳ 同步</button>`:''}
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+          <button onclick="openExcelImport()" style="font-size:10px;padding:3px 9px;border-radius:5px;border:1.5px solid #d97706;background:#fffbeb;color:#d97706;cursor:pointer;font-weight:600">📊 匯入Excel</button>
+          ${SHEETS_URL?`<button onclick="pushAllToSheets()" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #16a34a;background:#f0fdf4;color:#16a34a;cursor:pointer">↑ 推送</button><button onclick="diagSheets()" style="font-size:10px;padding:3px 8px;border-radius:5px;border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;cursor:pointer">🔍 診斷</button>`:''}
       </div>
       </div>
       ${openAll.length?`<p style="font-size:12px;color:#d97706;margin-top:6px">⚠️ ${openAll.length} 件進行中</p>`:'<p style="font-size:12px;color:#16a34a;margin-top:6px">✓ 目前無進行中案件</p>'}
@@ -1674,6 +1678,12 @@ function renderSettings(){
       <button class="btn-p" style="width:100%;justify-content:center;padding:9px" onclick="saveUserName()">儲存姓名</button>
     </div>
     <div class="card" style="margin-bottom:10px">
+      <div class="card" style="margin-bottom:10px;border-color:#fecaca">
+      <p style="font-size:13px;font-weight:500;color:#0f172a;margin-bottom:6px">🧹 資料維護</p>
+      <p style="font-size:11px;color:#64748b;margin-bottom:8px">清除缺少必要欄位或日期無效的異常資料</p>
+      <button onclick="cleanBadCases()" style="width:100%;padding:9px;border:1px solid #dc2626;background:#fff;color:#dc2626;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit">🗑️ 清除異常資料</button>
+    </div>
+    <div class="card" style="margin-bottom:10px">
       <p style="font-size:13px;font-weight:500;color:#0f172a;margin-bottom:10px">🤖 AI 設定</p>
       <label class="lbl">選擇 AI</label>
       <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -2016,6 +2026,17 @@ function closeOPR(id){
 
 // ── Excel Import ──────────────────────────────────────────
 let importPreview=null;
+
+
+function cleanBadCases(){
+  const bad=cases.filter(c=>!c.type||!c.createdAt||isNaN(new Date(c.createdAt).getTime())||
+    (!c.what&&!c.anomalyType&&!c.defectItem&&!c.title&&!c.description));
+  if(bad.length===0){toast('✅ 沒有發現異常資料','ok');return;}
+  if(!confirm(`發現 ${bad.length} 筆異常資料（缺少必要欄位或日期無效）\n\n確定要清除嗎？此操作無法復原。`))return;
+  cases=cases.filter(c=>!bad.includes(c));
+  save();renderDashboard();
+  toast(`🗑️ 已清除 ${bad.length} 筆異常資料`,'ok');
+}
 
 function openExcelImport(){
   document.getElementById('excelInput').click();
