@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>品質管理</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link rel="manifest" href="manifest.json"/>
 <meta name="theme-color" content="#0f2744"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -90,9 +91,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
   </nav>
 </div>
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="handleFile(event)"/>
+<input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v4.2';
+const BUILD='v5.2';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -322,6 +324,42 @@ const D_DESC={
 let activeDPanel=null; // which D is showing panel
 
 const DCOL={D1:'#94a3b8',D2:'#3b82f6',D3:'#d97706',D4:'#7c3aed',D5:'#dc2626',D6:'#0891b2',D7:'#16a34a',D8:'#1e3a8a'};
+
+const STATIONS=[
+  {id:1,zh:'線圈',en:'Coil',color:'#0891b2'},
+  {id:2,zh:'製粉',en:'Powder',color:'#64748b'},
+  {id:3,zh:'成型站',en:'Molding',color:'#7c3aed'},
+  {id:4,zh:'烘烤站',en:'Curing',color:'#dc2626'},
+  {id:5,zh:'噴塗站',en:'Coating',color:'#d97706'},
+  {id:6,zh:'折彎腳',en:'Bending',color:'#16a34a'},
+  {id:7,zh:'外檢站',en:'Inspection',color:'#1d4ed8'},
+  {id:8,zh:'測試包裝站',en:'Testing & Packaging',color:'#0d9488'},
+  {id:9,zh:'終檢站',en:'Final Inspecting',color:'#9333ea'},
+  {id:10,zh:'入庫站',en:'Warehousing',color:'#475569'},
+];
+const STATION_NAMES=STATIONS.map(s=>s.zh);
+function stationColor(name){const s=STATIONS.find(x=>x.zh===name);return s?s.color:'#94a3b8';}
+// Normalize station names from Excel (彎腳站/彎脚站 → 折彎腳)
+function normStation(raw){
+  if(!raw)return'';
+  const s=String(raw).trim();
+  const map={'彎腳站':'折彎腳','彎脚站':'折彎腳','弯脚站':'折彎腳','彎腳':'折彎腳','折彎腳站':'折彎腳',
+    '成型':'成型站','烘烤':'烘烤站','噴塗':'噴塗站','喷涂站':'噴塗站','外檢':'外檢站','外检站':'外檢站',
+    '終檢':'終檢站','终检站':'終檢站','測包':'測試包裝站','测包站':'測試包裝站','測試包裝':'測試包裝站',
+    '入庫':'入庫站','線圈站':'線圈','製粉站':'製粉','制粉站':'製粉'};
+  if(map[s])return map[s];
+  const exact=STATION_NAMES.find(n=>n===s);
+  if(exact)return exact;
+  const partial=STATION_NAMES.find(n=>s.includes(n)||n.includes(s));
+  return partial||s;
+}
+// Station picker UI
+function stationPicker(selected,onSelectFn,allowEmpty=true){
+  return`<div style="display:flex;flex-wrap:wrap;gap:5px">
+    ${allowEmpty?`<button onclick="${onSelectFn}('')" style="padding:5px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;border:${!selected?'1.5px solid #94a3b8':'1px solid #e2e8f0'};background:${!selected?'#f1f5f9':'#fff'};color:#64748b">未指定</button>`:''}
+    ${STATIONS.map(s=>`<button onclick="${onSelectFn}('${s.zh}')" style="padding:5px 9px;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;border:${selected===s.zh?`1.5px solid ${s.color}`:'1px solid #e2e8f0'};background:${selected===s.zh?s.color+'18':'#fff'};color:${selected===s.zh?s.color:'#64748b'};font-weight:${selected===s.zh?'600':'400'}">${s.id}.${s.zh}</button>`).join('')}
+  </div>`;
+}
 const PHOTO_LABELS=['不良品外觀','顯微鏡照','截面分析','EDX報告','對照良品','客戶提供','其他'];
 const DEFAULT_CL=[
   {id:'CL01',cat:'客戶端',item:'客戶端風險品已隔離（停線/停用）'},
@@ -373,7 +411,7 @@ function casesByMod(m){return cases.filter(c=>c.type===m);}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function nl2br(s){return esc(s).replace(/\n/g,'<br/>');}
 function emptyForm(){return{what:'',where:'',when:'',which:'',who:'',defectCount:'',inputCount:'',howDetected:'',riskStart:'',riskEnd:'',riskType:'continuous',riskAction:'hold'};}
-function emptyFqcForm(){return{wk:'',date:'',series:'',product:'',batch:'',anomalyType:'',anomalyDetail:'',owner:'',inspCount:'',defectCount:'',defectRate:'',handling:'重檢'};}
+function emptyFqcForm(){return{wk:'',date:'',series:'',product:'',batch:'',anomalyType:'',anomalyDetail:'',owner:'',inspCount:'',defectCount:'',defectRate:'',handling:'重檢',foundStation:'',sourceStation:''};}
 function getClTpl(){try{const d=localStorage.getItem('qms_cl_tpl');return d?JSON.parse(d):DEFAULT_CL;}catch{return DEFAULT_CL;}}
 function saveClTpl(t){localStorage.setItem('qms_cl_tpl',JSON.stringify(t));}
 
@@ -661,6 +699,8 @@ function renderList(){
     ${renderSearchBar(activeModule==='complaint'?'搜尋客戶名、DC、型號...':'搜尋異常項目、產品、站別...')}
     ${list.length===0&&searchQuery?'<div class="card" style="text-align:center;padding:30px"><p style="color:#94a3b8;font-size:13px">找不到符合的案件</p></div>':list.length===0?'<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無記錄</p></div>':list.map(c=>`<div class="card" style="cursor:pointer" onclick="openCase('${c.id}')"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.what||c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div>${c.type==='complaint'?dBarHTML(c.currentD,c.closed):''}<div style="display:flex;gap:8px;font-size:11px;flex-wrap:wrap;margin-top:5px;align-items:center">
   <span style="color:#334155;font-weight:500">${esc(c.who||c.product||'—')}</span>
+  ${c.station?`<span style="background:${stationColor(c.station)}18;color:${stationColor(c.station)};padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500">${esc(c.station)}</span>`:''}
+  ${c.sourceStation?`<span style="background:${stationColor(c.sourceStation)}18;color:${stationColor(c.sourceStation)};padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500">🎯${esc(c.sourceStation)}</span>`:(c.type==='fqc1'||c.type==='fqc2')?'<span style="color:#dc2626;font-size:10px">🎯待確認</span>':''}
   <span style="color:#64748b">${dcDisplay(c)}</span>
   ${ppmStr(c)||''}
   <span style="color:#94a3b8;margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>
@@ -739,6 +779,9 @@ async function submitComplaint(){
   const rStr=nc.riskBatch.start?`風險批DC${nc.riskBatch.start}～${nc.riskBatch.end}`:'風險批未定義';
   await doPaste('新案件：'+nc.what+' | '+nc.who+' | DC'+nc.when+' | '+nc.which+' | 不良'+pStr+' | '+rStr,[],nc);}
 
+function setFqcFound(s){fqcForm.foundStation=s;renderNewFqc();}
+function setFqcSource(s){fqcForm.sourceStation=s;renderNewFqc();}
+
 function renderNewFqc(){
   const f=fqcForm;
   const isFqc2=activeModule==='fqc2';
@@ -775,6 +818,10 @@ function renderNewFqc(){
       <div><label class="lbl">不良率%</label><input class="inp" id="ff_rate" value="${esc(f.defectRate)}" placeholder="0.2"/></div>
     </div>
     <div class="field"><label class="lbl">處理結果</label><div style="display:flex;gap:6px">${['重檢','報廢','特采'].map(v=>`<button onclick="fqcForm.handling='${v}';renderNewFqc()" style="flex:1;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit;border:${f.handling===v?'1.5px solid #1d4ed8':'1px solid #cbd5e1'};background:${f.handling===v?'#eff6ff':'#fff'};color:${f.handling===v?'#1d4ed8':'#64748b'}">${v}</button>`).join('')}</div></div>
+    <div class="field"><label class="lbl">發現站別</label>${stationPicker(f.foundStation||(isFqc2?'終檢站':'外檢站'),'setFqcFound',false)}</div>
+    <div class="field"><label class="lbl">🎯 源頭站別（不良是哪一站造成的）</label>${stationPicker(f.sourceStation||'','setFqcSource',true)}
+      ${!f.sourceStation?'<p style="font-size:11px;color:#d97706;margin-top:4px">⚠️ 可先留空，調查後在「基本」分頁補填</p>':''}
+    </div>
     <div class="field"><label class="lbl">責任人</label><input class="inp" id="ff_owner" value="${esc(f.owner)}" placeholder="姓名"/></div>
     <div class="field"><label class="lbl">原因分析</label><textarea class="inp" id="ff_cause" rows="2" style="resize:none" placeholder="初步原因...">${esc(f.rootCause||'')}</textarea></div>
     <div class="field"><label class="lbl">改善對策</label><textarea class="inp" id="ff_action" rows="2" style="resize:none" placeholder="改善措施...">${esc(f.countermeasure||'')}</textarea></div>
@@ -813,7 +860,7 @@ async function submitFqc(){
   const g=k=>document.getElementById('ff_'+k)?.value.trim()||'';
   Object.assign(fqcForm,{wk:g('wk'),date:g('date'),series:g('series'),product:g('product'),batch:g('batch'),anomalyType:g('anomalyType'),anomalyDetail:document.getElementById('ff_detail')?.value.trim()||'',inspCount:g('insp'),defectCount:g('def'),defectRate:g('rate'),owner:g('owner')});
   if(!fqcForm.product||!fqcForm.anomalyType){alert('請填寫產品料號和異常項目');return;}
-  const nc={id:genId(),type:activeModule==='fqc2'?'fqc2':'fqc1',createdAt:Date.now(),createdBy:USER_NAME||'未知',closed:false,trackStatus:'tracking',wk:fqcForm.wk,date:fqcForm.date,series:fqcForm.series,product:fqcForm.product,batch:fqcForm.batch,anomalyType:fqcForm.anomalyType,anomalyDetail:fqcForm.anomalyDetail,owner:fqcForm.owner,inspCount:fqcForm.inspCount,defectCount:fqcForm.defectCount,defectRate:fqcForm.defectRate,handling:fqcForm.handling,rootCause:document.getElementById('ff_cause')?.value.trim()||'',countermeasure:document.getElementById('ff_action')?.value.trim()||'',recurrence:fqcForm.recurrence||'否',photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
+  const nc={id:genId(),type:activeModule==='fqc2'?'fqc2':'fqc1',createdAt:Date.now(),createdBy:USER_NAME||'未知',closed:false,trackStatus:'tracking',wk:fqcForm.wk,date:fqcForm.date,series:fqcForm.series,product:fqcForm.product,batch:fqcForm.batch,anomalyType:fqcForm.anomalyType,anomalyDetail:fqcForm.anomalyDetail,owner:fqcForm.owner,inspCount:fqcForm.inspCount,defectCount:fqcForm.defectCount,defectRate:fqcForm.defectRate,handling:fqcForm.handling,foundStation:fqcForm.foundStation||(activeModule==='fqc2'?'終檢站':'外檢站'),sourceStation:fqcForm.sourceStation||'',rootCause:document.getElementById('ff_cause')?.value.trim()||'',countermeasure:document.getElementById('ff_action')?.value.trim()||'',recurrence:fqcForm.recurrence||'否',photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}};
   cases.unshift(nc);save();curId=nc.id;screen='detail';activeTab='paste';renderDetail();updateHdr();
   const fqcWeakCm=nc.countermeasure&&/宣導|訓練|教育|注意|提醒|培訓/.test(nc.countermeasure);await doPaste((nc.type==='fqc2'?'FQC2':'FQC1')+'異常：'+nc.anomalyType+' | '+nc.product+' | '+nc.batch+' | 抽'+nc.inspCount+'不良'+nc.defectCount+' | 處理：'+nc.handling+(nc.rootCause?' | 原因：'+nc.rootCause:'')+(nc.countermeasure?' | 對策：'+nc.countermeasure:'')+(nc.recurrence==='是'?' | ⚠️已再發':''),[],nc);}
 
@@ -873,6 +920,31 @@ function switchTab(t){activeTab=t;['opr','info','paste','timeline','pending','di
 function renderTab(c){if(activeTab==='paste')return renderPasteTab(c);if(activeTab==='timeline')return renderTimelineTab(c);if(activeTab==='pending')return renderPendingTab(c);if(activeTab==='discuss')return renderDiscussTab(c);if(activeTab==='checklist')return renderCLTab(c);return'';}
 
 
+
+function editSourceStation(id){
+  const c=cases.find(x=>x.id===id);if(!c)return;
+  const modal=document.createElement('div');
+  modal.id='srcStationModal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:250;display:flex;align-items:flex-end';
+  modal.innerHTML=`<div style="background:#fff;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:430px;margin:0 auto">
+    <p style="font-size:15px;font-weight:600;color:#0f172a;margin:0 0 4px">🎯 設定源頭站別</p>
+    <p style="font-size:11px;color:#64748b;margin:0 0 14px">不良是哪一站造成的？追到源頭才能改善</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+      <button onclick="applySourceStation('${id}','')" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;border:${!c.sourceStation?'1.5px solid #94a3b8':'1px solid #e2e8f0'};background:${!c.sourceStation?'#f1f5f9':'#fff'};color:#64748b">未確認</button>
+      ${STATIONS.map(s=>`<button onclick="applySourceStation('${id}','${s.zh}')" style="padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;border:${c.sourceStation===s.zh?`1.5px solid ${s.color}`:'1px solid #e2e8f0'};background:${c.sourceStation===s.zh?s.color+'18':'#fff'};color:${c.sourceStation===s.zh?s.color:'#64748b'};font-weight:${c.sourceStation===s.zh?'600':'400'}">${s.id}. ${s.zh}</button>`).join('')}
+    </div>
+    <button onclick="document.getElementById('srcStationModal')?.remove()" class="btn-g" style="width:100%;justify-content:center">取消</button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+function applySourceStation(id,station){
+  const c=cases.find(x=>x.id===id);if(!c)return;
+  c.sourceStation=station;save();
+  document.getElementById('srcStationModal')?.remove();
+  renderDetail(false);
+  toast(station?`✅ 源頭站別：${station}`:'已清除源頭站別');
+}
+
 function renderInfoTab(c){
   const isC=c.type==='complaint';
   const pendCnt=(c.pending||[]).filter(p=>!p.confirmed).length;
@@ -926,12 +998,14 @@ function renderInfoTab(c){
       <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px">
         ${c.type==='ipqc'?`
           <span style="color:#94a3b8">缺失分類</span><span style="color:#0f172a;font-weight:500">${esc(c.defectCat||'—')}</span>
-          <span style="color:#94a3b8">站別</span><span style="color:#0f172a">${esc(c.station||'—')}</span>
+          <span style="color:#94a3b8">發生站別</span><span style="color:${c.station?stationColor(c.station):'#dc2626'};font-weight:500">${esc(c.station||'⚠️ 未指定')}</span>
           <span style="color:#94a3b8">缺失項目</span><span style="color:#0f172a;font-size:12px">${esc(c.defectItem||'—')}</span>
           <span style="color:#94a3b8">責任人</span><span style="color:#0f172a">${esc(c.owner||'—')}</span>
           <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
         `:c.type==='fqc1'||c.type==='fqc2'?`
           <span style="color:#94a3b8">異常項目</span><span style="color:#0f172a;font-weight:500">${esc(c.anomalyType||'—')}</span>
+          <span style="color:#94a3b8">發現站別</span><span style="color:${stationColor(c.foundStation)}">${esc(c.foundStation||'—')}</span>
+          <span style="color:#94a3b8">🎯 源頭站別</span><span>${c.sourceStation?`<span style="color:${stationColor(c.sourceStation)};font-weight:600">${esc(c.sourceStation)}</span>`:'<span style="color:#dc2626">⚠️ 待確認</span>'} <button onclick="editSourceStation('${c.id}')" style="border:none;background:none;color:#1d4ed8;cursor:pointer;font-size:11px;padding:0 4px">✏️改</button></span>
           <span style="color:#94a3b8">產品</span><span style="color:#0f172a;font-size:12px">${esc(c.product||'—')}</span>
           <span style="color:#94a3b8">批次</span><span style="color:#0f172a">${esc(c.batch||'—')}</span>
           <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
@@ -1066,11 +1140,7 @@ async function sendDiscuss(){
   isLoading=false;renderDetail();}
 
 function advD(){const c=getCur();if(!c)return;const i=DSTEPS.indexOf(c.currentD);if(i<7){c.currentD=DSTEPS[i+1];save();renderDetail();}}
-function setD(d){
-  const c=getCur();if(!c||c.closed)return;
-  if(c.currentD===d)return;
-  if(!confirm('確定要將進度調整為 '+d+'（'+DLBLS[d]+'）？'))return;
-  c.currentD=d;save();renderDetail();}
+
 function confPD(pid){const c=getCur();if(!c)return;const p=c.pending.find(x=>x.id===pid);if(!p)return;const r=prompt('確認結果：\n「'+(p.item||p.i||'')+'」')||'已確認';p.confirmed=true;p.result=r;save();renderDetail();}
 function addTL(){const d=prompt('事件日期（例：5/16）');if(!d)return;const e=prompt('事件描述');if(!e)return;const c=getCur();if(!c)return;c.timeline=[...(c.timeline||[]),{d,e,s:'手動新增',ts:Date.now()}];save();renderDetail();}
 function addPD(){const i=prompt('待確認事項');if(!i)return;const o=prompt('負責人（可留空）')||'';const c=getCur();if(!c)return;c.pending=[...(c.pending||[]),{id:'P'+Date.now(),item:i,owner:o,priority:'medium',confirmed:false,result:'',ts:Date.now()}];save();renderDetail();}
@@ -1212,11 +1282,100 @@ function renderKB(){
         </div>
       </div>`).join('')}`;
 }
+
+// ── Station Statistics ────────────────────────────────────
+let statsView='month'; // 'month' | 'station'
+
+function getStationStats(filterMonth){
+  const rel=cases.filter(c=>{
+    if(c.type!=='ipqc'&&c.type!=='fqc1'&&c.type!=='fqc2')return false;
+    if(!filterMonth)return true;
+    const d=new Date(c.createdAt);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`===filterMonth;
+  });
+  const map={};
+  STATION_NAMES.forEach(n=>map[n]={total:0,ipqc:0,fqc1:0,fqc2:0,recur:0,cases:[]});
+  let unassigned=0;
+  rel.forEach(c=>{
+    // IPQC uses station; FQC uses sourceStation
+    const st=c.type==='ipqc'?c.station:c.sourceStation;
+    if(!st||!map[st]){unassigned++;return;}
+    map[st].total++;
+    map[st][c.type]++;
+    if(c.recurrence==='是')map[st].recur++;
+    map[st].cases.push(c);
+  });
+  return{map,unassigned,total:rel.length};
+}
+
+function renderStationStats(){
+  const months=[...new Set(cases.map(c=>{const d=new Date(c.createdAt);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}))].sort().reverse();
+  if(!statsMonth||!months.includes(statsMonth))statsMonth=months[0]||null;
+  const {map,unassigned,total}=getStationStats(statsMonth);
+  const entries=Object.entries(map).filter(([,v])=>v.total>0).sort((a,b)=>b[1].total-a[1].total);
+  const maxVal=entries.length?entries[0][1].total:1;
+
+  return`<div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px">
+      <select onchange="statsMonth=this.value==='all'?null:this.value;renderStats()" class="inp" style="flex:1;padding:7px 10px;font-size:13px">
+        <option value="all" ${!statsMonth?'selected':''}>全部期間</option>
+        ${months.map(m=>`<option value="${m}" ${statsMonth===m?'selected':''}>${m}</option>`).join('')}
+      </select>
+    </div>
+    ${total===0?'<div class="card" style="text-align:center;padding:36px"><p style="color:#94a3b8;font-size:13px">此期間無 IPQC/FQC 記錄</p></div>':`
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <p style="font-size:12px;font-weight:600;color:#0f172a;margin:0">🏭 各站別異常次數</p>
+        <span style="font-size:11px;color:#64748b">共 ${total} 筆${unassigned?` · ${unassigned}筆未指定`:''}</span>
+      </div>
+      ${entries.map(([name,v])=>{
+        const col=stationColor(name);
+        const pct=Math.round((v.total/maxVal)*100);
+        const st=STATIONS.find(s=>s.zh===name);
+        return`<div style="margin-bottom:11px;cursor:pointer" onclick="statsStation=statsStation==='${name}'?null:'${name}';renderStats()">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:500;color:#0f172a">${st?st.id+'. ':''}${name}${v.recur?` <span style="color:#dc2626;font-size:10px">⚠️${v.recur}再發</span>`:''}</span>
+            <span style="font-size:13px;font-weight:700;color:${col}">${v.total}</span>
+          </div>
+          <div style="background:#f1f5f9;border-radius:9999px;height:8px;overflow:hidden">
+            <div style="background:${col};height:8px;width:${pct}%;border-radius:9999px;transition:width .4s"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:3px;font-size:10px;color:#94a3b8">
+            ${v.ipqc?`<span>IPQC ${v.ipqc}</span>`:''}
+            ${v.fqc1?`<span>FQC1 ${v.fqc1}</span>`:''}
+            ${v.fqc2?`<span>FQC2 ${v.fqc2}</span>`:''}
+          </div>
+          ${statsStation===name?`<div style="border-top:1px solid #f1f5f9;margin-top:8px;padding-top:8px">
+            ${v.cases.sort((a,b)=>b.createdAt-a.createdAt).slice(0,10).map(c=>`
+              <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f8fafc;font-size:11px" onclick="event.stopPropagation();openCase('${c.id}')">
+                <div style="flex:1;min-width:0;margin-right:8px">
+                  <span style="color:${c.type==='ipqc'?'#0891b2':c.type==='fqc1'?'#d97706':'#7c3aed'};font-weight:600;font-size:10px">${c.type.toUpperCase()}</span>
+                  <span style="color:#0f172a;margin-left:4px">${esc((c.defectItem||c.anomalyType||'').slice(0,26))}</span>
+                </div>
+                <span style="color:#94a3b8;flex-shrink:0">${c.wk||new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>
+              </div>`).join('')}
+          </div>`:''}
+        </div>`;}).join('')}
+      ${unassigned?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:8px">
+        <p style="font-size:11px;color:#d97706;margin:0">⚠️ ${unassigned} 筆尚未指定源頭站別，建議補填以完整統計</p>
+      </div>`:''}
+    </div>`}
+  </div>`;
+}
+let statsStation=null;
 // ── Monthly Statistics ────────────────────────────────────
 let statsMonth = null; // selected month for drill-down
 
 function renderStats(){
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  const toggleBar=`<div style="display:flex;gap:6px;margin-bottom:12px">
+    <button onclick="statsView='month';renderStats()" style="flex:1;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:${statsView==='month'?'600':'400'};font-family:inherit;border:${statsView==='month'?'1.5px solid #7c3aed':'1px solid #e2e8f0'};background:${statsView==='month'?'#f5f3ff':'#fff'};color:${statsView==='month'?'#7c3aed':'#64748b'}">📅 月份統計</button>
+    <button onclick="statsView='station';statsStation=null;renderStats()" style="flex:1;padding:8px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:${statsView==='station'?'600':'400'};font-family:inherit;border:${statsView==='station'?'1.5px solid #16a34a':'1px solid #e2e8f0'};background:${statsView==='station'?'#f0fdf4':'#fff'};color:${statsView==='station'?'#16a34a':'#64748b'}">🏭 站別統計</button>
+  </div>`;
+  if(statsView==='station'){
+    document.getElementById('content').innerHTML=toggleBar+renderStationStats();
+    return;
+  }
   // Build monthly data
   const monthly = {};
   cases.forEach(c=>{
@@ -1239,7 +1398,7 @@ function renderStats(){
   const totalAll=cases.length;
   const complaintTotal=cases.filter(c=>c.type==='complaint').length;
 
-  document.getElementById('content').innerHTML=`
+  document.getElementById('content').innerHTML=toggleBar+`
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
       <div class="card" style="text-align:center;padding:10px;margin-bottom:0">
         <p style="font-size:22px;font-weight:700;color:#0f172a;margin:0">${totalAll}</p>
@@ -1854,6 +2013,218 @@ function closeOPR(id){
   if(!confirm('確定結案？'))return;
   const c=cases.find(x=>x.id===id);if(!c)return;
   c.closed=true;save();toast('✅ OPR已結案');renderDetail(false);}
+
+// ── Excel Import ──────────────────────────────────────────
+let importPreview=null;
+
+function openExcelImport(){
+  document.getElementById('excelInput').click();
+}
+
+function handleExcelFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',cellDates:true});
+      parseQCWorkbook(wb);
+    }catch(err){
+      toast('❌ 檔案讀取失敗：'+err.message,'error',4000);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value='';
+}
+
+
+// Infer source station from cause/defect description keywords
+function inferSourceStation(text){
+  if(!text)return'';
+  const t=String(text);
+  const rules=[
+    [/彎脚|彎腳|弯脚|折彎|料片翹|料片翘|料片歪|壓平|压平|壓腳|压脚/,'折彎腳'],
+    [/噴塗|喷涂|噴膠|喷胶|油漆|膜厚|掉漆|百格/,'噴塗站'],
+    [/成型|上沖|上冲|模具|毛邊|毛边|預埋|预埋|線圈暗裂|线圈暗裂|刷粉/,'成型站'],
+    [/烘烤|烤箱|爐溫|炉温|溫度曲線|温度曲线|鼓包|鼓裂|IR爐|IR炉/,'烘烤站'],
+    [/測包|测包|包裝|包装|壓袋|压袋|漏壓|漏压|捲帶|卷带|松帶|松带/,'測試包裝站'],
+    [/線圈|线圈|繞線|绕线|漆包線|漆包线/,'線圈'],
+    [/製粉|制粉|粉末|磁粉|配粉/,'製粉'],
+    [/終檢|终检|最終檢|最终检/,'終檢站'],
+    [/入庫|入库|倉庫|仓库|儲位|储位/,'入庫站'],
+    [/外檢|外检|AOI|AI檢|AI检|外觀檢/,'外檢站'],
+  ];
+  for(const [re,st] of rules){ if(re.test(t))return st; }
+  return'';
+}
+
+function cleanVal(v){
+  if(v===null||v===undefined)return'';
+  if(v instanceof Date)return v.toISOString().slice(0,10);
+  return String(v).replace(/\n/g,' ').trim();
+}
+
+function parseQCWorkbook(wb){
+  const results={ipqc:[],fqc1:[],fqc2:[]};
+  wb.SheetNames.forEach(name=>{
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:''});
+    // Find header row (contains 序號 or 序号)
+    let hIdx=-1;
+    for(let i=0;i<Math.min(5,rows.length);i++){
+      if(rows[i].some(c=>String(c).includes('序號')||String(c).includes('序号'))){hIdx=i;break;}
+    }
+    if(hIdx<0)return;
+    const hdr=rows[hIdx].map(h=>String(h).replace(/\n/g,'').trim());
+    const col=k=>hdr.findIndex(h=>h.includes(k));
+    const isIPQC=name.includes('IPQC');
+    const isFQC1=name.includes('FQC1');
+    const isFQC2=name.includes('FQC2');
+    if(!isIPQC&&!isFQC1&&!isFQC2)return;
+
+    const idx={
+      seq:col('序'),wk:col('WEEK')>=0?col('WEEK'):col('WK'),
+      date:col('日期'),ref:col('參照'),station:col('站別'),
+      cat:col('缺失分類'),item:col('異常項目'),
+      content:col('缺陷内容')>=0?col('缺陷内容'):col('缺失項目'),
+      owner:col('责任人')>=0?col('责任人'):col('責任人'),
+      insp:col('抽检数')>=0?col('抽检数'):col('抽檢數'),
+      def:col('不良數')>=0?col('不良數'):col('不良数'),
+      rate:col('不良率'),handling:col('處理結果'),
+      cause:col('原因分析')>=0?col('原因分析'):col('異常原因'),
+      action:col('改善對策')>=0?col('改善對策'):col('再發防止對策'),
+      done:col('完成日期'),recur:col('是否再發'),
+      track:col('結案追蹤')>=0?col('結案追蹤'):col('IPQC結案追蹤')
+    };
+
+    for(let i=hIdx+1;i<rows.length;i++){
+      const r=rows[i];
+      const seq=cleanVal(r[idx.seq]);
+      if(!seq||isNaN(parseFloat(seq)))continue;
+      const content=cleanVal(r[idx.content]);
+      if(!content)continue;
+
+      const base={
+        _seq:seq,_sheet:name,
+        wk:cleanVal(r[idx.wk]),
+        date:cleanVal(r[idx.date]),
+        ref:cleanVal(r[idx.ref]),
+        owner:cleanVal(r[idx.owner]),
+        cause:cleanVal(r[idx.cause]),
+        action:cleanVal(r[idx.action]),
+        doneDate:cleanVal(r[idx.done]),
+        recurrence:cleanVal(r[idx.recur]).includes('是')?'是':'否',
+        trackNote:cleanVal(r[idx.track])
+      };
+
+      if(isIPQC){
+        results.ipqc.push({...base,type:'ipqc',
+          station:normStation(cleanVal(r[idx.station])),
+          defectCat:cleanVal(r[idx.cat]),
+          defectItem:content});
+      }else{
+        const insp=parseFloat(cleanVal(r[idx.insp]))||0;
+        const def=parseFloat(cleanVal(r[idx.def]))||0;
+        const rateRaw=parseFloat(cleanVal(r[idx.rate]))||0;
+        // Extract product & LC from content (e.g., "MAT-06CZE80NM-R1-CY DK66004E00")
+        const pm=content.match(/([A-Z]{2,4}[-\w]{6,})\s+(DK[\w]+)/);
+        results[isFQC1?'fqc1':'fqc2'].push({...base,type:isFQC1?'fqc1':'fqc2',
+          foundStation:isFQC1?'外檢站':'終檢站',
+          sourceStation:inferSourceStation(cleanVal(r[idx.cause])+' '+cleanVal(r[idx.item])+' '+content),
+          anomalyType:cleanVal(r[idx.item]),
+          anomalyDetail:content,
+          product:pm?pm[1]:'',batch:pm?pm[2]:'',
+          series:cleanVal(r[idx.ref]),
+          inspCount:insp?String(insp):'',
+          defectCount:def?String(def):'',
+          defectRate:rateRaw?(rateRaw<1?(rateRaw*100).toFixed(3):rateRaw.toFixed(3)):'',
+          handling:cleanVal(r[idx.handling])||'重檢'});
+      }
+    }
+  });
+
+  const total=results.ipqc.length+results.fqc1.length+results.fqc2.length;
+  if(total===0){toast('⚠️ 未找到可匯入的資料','warn',3500);return;}
+  importPreview=results;
+  showImportPreview();
+}
+
+function showImportPreview(){
+  const r=importPreview;
+  const total=r.ipqc.length+r.fqc1.length+r.fqc2.length;
+  // Detect duplicates by wk+date+content
+  const existKeys=new Set(cases.map(c=>`${c.wk}|${c.date||c.auditDate}|${(c.defectItem||c.anomalyDetail||'').slice(0,40)}`));
+  const countNew=arr=>arr.filter(x=>!existKeys.has(`${x.wk}|${x.date}|${(x.defectItem||x.anomalyDetail||'').slice(0,40)}`)).length;
+  const newIpqc=countNew(r.ipqc),newFqc1=countNew(r.fqc1),newFqc2=countNew(r.fqc2);
+  const newTotal=newIpqc+newFqc1+newFqc2;
+
+  const modal=document.createElement('div');
+  modal.id='importModal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:flex;align-items:flex-end';
+  modal.innerHTML=`<div style="background:#fff;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:430px;margin:0 auto;max-height:80vh;overflow-y:auto">
+    <p style="font-size:15px;font-weight:600;color:#0f172a;margin:0 0 4px">📊 Excel 匯入預覽</p>
+    <p style="font-size:11px;color:#64748b;margin:0 0 4px">共解析 ${total} 筆・其中 ${newTotal} 筆為新資料</p>
+    ${(()=>{const inferred=[...r.fqc1,...r.fqc2].filter(x=>x.sourceStation).length;const fqcTotal=r.fqc1.length+r.fqc2.length;return fqcTotal?`<p style="font-size:11px;color:#16a34a;margin:0 0 12px">🎯 已自動推斷 ${inferred}/${fqcTotal} 筆 FQC 源頭站別</p>`:'<div style="height:10px"></div>';})()}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      ${[['IPQC',r.ipqc.length,newIpqc,'#0891b2'],['FQC1',r.fqc1.length,newFqc1,'#d97706'],['FQC2',r.fqc2.length,newFqc2,'#7c3aed']].map(([l,t,n,c])=>`
+        <div style="border:1.5px solid ${c}40;border-radius:8px;padding:10px;text-align:center">
+          <p style="font-size:20px;font-weight:700;color:${c};margin:0">${n}</p>
+          <p style="font-size:10px;color:#94a3b8;margin:2px 0 0">${l}（共${t}）</p>
+        </div>`).join('')}
+    </div>
+    ${newTotal<total?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:12px"><p style="font-size:11px;color:#d97706;margin:0">⚠️ ${total-newTotal} 筆已存在，將自動跳過</p></div>`:''}
+    <div style="max-height:200px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;padding:8px;margin-bottom:14px">
+      ${[...r.ipqc,...r.fqc1,...r.fqc2].slice(0,8).map(x=>`
+        <div style="padding:5px 0;border-bottom:1px solid #f8fafc;font-size:11px">
+          <span style="color:${x.type==='ipqc'?'#0891b2':x.type==='fqc1'?'#d97706':'#7c3aed'};font-weight:600">${x.type.toUpperCase()}</span>
+          <span style="color:#64748b"> ${x.wk} ${x.date}</span>
+          ${(x.station||x.sourceStation)?`<span style="background:${stationColor(x.station||x.sourceStation)}18;color:${stationColor(x.station||x.sourceStation)};padding:0 5px;border-radius:3px;margin-left:4px;font-size:10px">${x.station||('🎯'+x.sourceStation)}</span>`:''}<br/>
+          <span style="color:#0f172a">${esc((x.defectItem||x.anomalyDetail||'').slice(0,50))}...</span>
+        </div>`).join('')}
+      ${total>8?`<p style="font-size:10px;color:#94a3b8;text-align:center;padding:6px 0;margin:0">還有 ${total-8} 筆...</p>`:''}
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="document.getElementById('importModal').remove();importPreview=null" class="btn-g" style="flex:1;justify-content:center">取消</button>
+      <button onclick="confirmImport()" class="btn-p" style="flex:2;justify-content:center;padding:10px" ${newTotal===0?'disabled':''}>匯入 ${newTotal} 筆</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+function confirmImport(){
+  const r=importPreview;if(!r)return;
+  const existKeys=new Set(cases.map(c=>`${c.wk}|${c.date||c.auditDate}|${(c.defectItem||c.anomalyDetail||'').slice(0,40)}`));
+  let added=0;
+  const all=[...r.ipqc,...r.fqc1,...r.fqc2];
+  all.forEach(x=>{
+    const key=`${x.wk}|${x.date}|${(x.defectItem||x.anomalyDetail||'').slice(0,40)}`;
+    if(existKeys.has(key))return;
+    const ts=x.date?new Date(x.date).getTime():Date.now();
+    const nc={
+      id:(x.type==='ipqc'?'I':'F')+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5),
+      type:x.type,createdAt:isNaN(ts)?Date.now():ts,closed:false,trackStatus:'tracking',
+      createdBy:'Excel匯入',importedFrom:x._sheet,importSeq:x._seq,
+      wk:x.wk,auditDate:x.date,date:x.date,ref:x.ref,series:x.series||x.ref,
+      owner:x.owner,rootCause:x.cause,countermeasure:x.action,
+      dueDate:x.doneDate,recurrence:x.recurrence,trackNote:x.trackNote,
+      ...(x.type==='ipqc'?{
+        defectCat:x.defectCat,station:x.station,defectItem:x.defectItem
+      }:{
+        anomalyType:x.anomalyType,anomalyDetail:x.anomalyDetail,
+        foundStation:x.foundStation||'',sourceStation:x.sourceStation||'',
+        product:x.product,batch:x.batch,
+        inspCount:x.inspCount,defectCount:x.defectCount,defectRate:x.defectRate,
+        handling:x.handling
+      }),
+      trackEntries:x.recurrence==='是'?[{date:x.date,batch:x.batch||x.wk,result:'再發',note:'Excel匯入時標記為再發',ts:Date.now()}]:[],
+      photos:[],messages:[],timeline:[],pending:[],aiDiscussion:[],aiAssessment:'',checklistState:{}
+    };
+    cases.unshift(nc);added++;
+  });
+  save();
+  document.getElementById('importModal').remove();
+  importPreview=null;
+  renderDashboard();screen='dashboard';updateHdr();
+  toast(`✅ 已匯入 ${added} 筆記錄`,'ok',3000);
+}
 // ── FQC Combined View ─────────────────────────────────────
 let fqcTab='fqc1'; // 'fqc1' or 'fqc2'
 
@@ -1870,7 +2241,7 @@ function renderFQC(){
     <button class="btn-p" style="width:100%;justify-content:center;margin-bottom:12px;padding:10px" onclick="activeModule=fqcTab;screen='new';fqcForm=emptyFqcForm();renderNew();updateHdr()">
       + 新增${fqcTab==='fqc1'?'FQC1 外觀異常':'FQC2 測包異常'}
     </button>
-    ${list.length===0?`<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無 ${fqcTab==='fqc1'?'FQC1':'FQC2'} 記錄</p></div>`:list.map(c=>`<div class="card" style="cursor:pointer" onclick="curId='${c.id}';activeTab='paste';screen='detail';renderDetail();updateHdr()"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div><div style="display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-wrap:wrap;margin-top:4px"><span>${esc(c.product||'—')}</span><span>${esc(c.wk||'—')}</span><span>${esc(c.batch||'—')}</span><span style="margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}</div></div>`).join('')}`;
+    ${list.length===0?`<div class="card" style="text-align:center;padding:40px"><p style="color:#94a3b8;font-size:13px">目前無 ${fqcTab==='fqc1'?'FQC1':'FQC2'} 記錄</p></div>`:list.map(c=>`<div class="card" style="cursor:pointer" onclick="curId='${c.id}';activeTab='paste';screen='detail';renderDetail();updateHdr()"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:2px"><p style="flex:1;font-size:14px;font-weight:500;color:#0f172a;margin:0">${esc(c.anomalyType||'（未填）')}</p>${statusBadge(c)}</div><div style="display:flex;gap:10px;font-size:10px;color:#94a3b8;flex-wrap:wrap;margin-top:4px"><span>${esc(c.product||'—')}</span><span>${esc(c.wk||'—')}</span>${c.sourceStation?`<span style="background:${stationColor(c.sourceStation)}18;color:${stationColor(c.sourceStation)};padding:1px 6px;border-radius:4px;font-weight:500">🎯${esc(c.sourceStation)}</span>`:'<span style="color:#dc2626">🎯待確認</span>'}<span style="margin-left:auto">${new Date(c.createdAt).toLocaleDateString('zh-TW')}</span>${(c.pending||[]).filter(p=>!p.confirmed).length?`<span style="color:#dc2626">❓${(c.pending||[]).filter(p=>!p.confirmed).length}待確認</span>`:''}</div></div>`).join('')}`;
 }
 
 // FQC Auto-fill system prompt
@@ -1882,6 +2253,8 @@ function emptyIpqcForm(){
   return{wk:'',auditDate:'',ref:'',defectCat:'',station:'',defectItem:'',owner:'',rootCause:'',countermeasure:'',dueDate:'',recurrence:'否'};}
 
 let ipqcForm=emptyIpqcForm();
+
+function setIpqcStation(s){ipqcForm.station=s;renderNewIpqc();}
 
 function renderNewIpqc(){
   const f=ipqcForm;
@@ -1898,7 +2271,7 @@ function renderNewIpqc(){
     <div class="field"><label class="lbl">缺失分類 *</label>
       <div style="display:flex;flex-wrap:wrap;gap:5px">${cats.map(c=>`<button onclick="ipqcForm.defectCat='${c}';renderNewIpqc()" style="padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;border:${f.defectCat===c?'1.5px solid #1d4ed8':'1px solid #cbd5e1'};background:${f.defectCat===c?'#eff6ff':'#fff'};color:${f.defectCat===c?'#1d4ed8':'#64748b'}">${c}</button>`).join('')}</div>
     </div>
-    <div class="field"><label class="lbl">站別 *</label><input class="inp" id="ip_station" value="${esc(f.station)}" placeholder="外檢站 / 焊接站 / 成型站"/></div>
+    <div class="field"><label class="lbl">發生站別 *</label>${stationPicker(f.station,'setIpqcStation',false)}</div>
     <div class="field"><label class="lbl">缺失項目 *</label><textarea class="inp" id="ip_item" rows="3" style="resize:none" placeholder="描述觀察到的異常...">${esc(f.defectItem)}</textarea></div>
     <div class="field"><label class="lbl">責任人</label><input class="inp" id="ip_owner" value="${esc(f.owner)}" placeholder="姓名"/></div>
     <div class="field"><label class="lbl">原因分析</label><textarea class="inp" id="ip_cause" rows="2" style="resize:none" placeholder="初步原因分析...">${esc(f.rootCause)}</textarea></div>
@@ -1940,7 +2313,7 @@ async function ipqcAutoFill(){
 
 async function submitIpqc(){
   const g=id=>document.getElementById('ip_'+id)?.value.trim()||'';
-  Object.assign(ipqcForm,{wk:g('wk'),auditDate:g('date'),ref:g('ref'),station:g('station'),defectItem:g('item'),owner:g('owner'),rootCause:g('cause'),countermeasure:g('action'),dueDate:g('due')});
+  Object.assign(ipqcForm,{wk:g('wk'),auditDate:g('date'),ref:g('ref'),defectItem:g('item'),owner:g('owner'),rootCause:g('cause'),countermeasure:g('action'),dueDate:g('due')});
   if(!ipqcForm.defectCat){alert('請選擇缺失分類');return;}
   if(!ipqcForm.station||!ipqcForm.defectItem){alert('請填寫站別和缺失項目');return;}
   const nc={id:genId(),type:'ipqc',createdAt:Date.now(),createdBy:USER_NAME||'未知',closed:false,trackStatus:'tracking',
@@ -2095,23 +2468,22 @@ function showAccessGate(){
   if(!gate){gate=document.createElement('div');gate.id='accessGate';document.body.appendChild(gate);}
   gate.style.cssText='position:fixed;inset:0;background:#0f2744;display:flex;align-items:center;justify-content:center;z-index:9999;padding:24px;flex-direction:column';
   gate.innerHTML=`
-    <div style="background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:320px;text-align:center">
-      <div style="font-size:48px;margin-bottom:8px">🏭</div>
-      <p style="font-size:18px;font-weight:700;color:#0f2744;margin:0 0 4px">品質管理系統</p>
-      <p style="font-size:12px;color:#94a3b8;margin:0 0 24px">YAGEO Vietnam QMS</p>
-      <div style="text-align:left;margin-bottom:10px">
-        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:500">您的姓名</label>
-        <input id="gate_name" class="inp" placeholder="輸入您的姓名" style="font-size:14px;padding:10px"/>
+    <div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:320px;text-align:center">
+      <div style="font-size:52px;margin-bottom:10px">🏭</div>
+      <p style="font-size:19px;font-weight:700;color:#0f2744;margin:0 0 4px">品質管理系統</p>
+      <p style="font-size:12px;color:#94a3b8;margin:0 0 28px">YAGEO Vietnam QMS</p>
+      <div style="text-align:left;margin-bottom:12px">
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:5px;font-weight:500">您的姓名</label>
+        <input id="gate_name" class="inp" placeholder="輸入您的姓名" style="font-size:15px;padding:12px"/>
       </div>
-      <div style="text-align:left;margin-bottom:18px">
-        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:4px;font-weight:500">存取碼（向管理員申請）</label>
-        <input id="gate_code" class="inp" type="password" placeholder="••••••" style="font-size:18px;letter-spacing:3px;text-align:center;padding:10px" onkeydown="if(event.key==='Enter')submitGate()"/>
+      <div style="text-align:left;margin-bottom:20px">
+        <label style="font-size:12px;color:#64748b;display:block;margin-bottom:5px;font-weight:500">存取碼</label>
+        <input id="gate_code" class="inp" type="password" placeholder="輸入存取碼" style="font-size:18px;letter-spacing:4px;text-align:center;padding:12px" onkeydown="if(event.key==='Enter')submitGate()"/>
       </div>
-      <button id="gateBtn" onclick="submitGate()" style="width:100%;padding:12px;background:#1d4ed8;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">進入系統</button>
-      <p id="gate_err" style="color:#dc2626;font-size:12px;margin-top:8px;min-height:16px"></p>
-      <p style="font-size:10px;color:#cbd5e1;margin-top:12px">未授權請勿使用</p>
-    </div>
-    ${!SHEETS_URL?`<button onclick="bootstrapSetup()" style="margin-top:16px;padding:8px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-family:inherit">⚙️ 首次設定 URL</button>`:''}`;
+      <button id="gateBtn" onclick="submitGate()" style="width:100%;padding:14px;background:#1d4ed8;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">進入系統</button>
+      <p id="gate_err" style="color:#dc2626;font-size:12px;margin-top:10px;min-height:16px"></p>
+      <p style="font-size:10px;color:#94a3b8;margin-top:16px">請向管理員申請存取碼</p>
+    </div>`;
 }
 
 async function submitGate(){
@@ -2140,6 +2512,15 @@ async function submitGate(){
   }
 }
 
+function saveGateUrl(){
+  const url=(document.getElementById('gate_url')?.value||'').trim();
+  if(!url||!url.startsWith('https://')){
+    alert('請貼入正確的 URL（以 https:// 開頭）');return;
+  }
+  localStorage.setItem('qms_sheets_url',url);
+  location.reload();
+}
+
 function bootstrapSetup(){
   const url=prompt('請輸入 Apps Script Web App URL：');
   if(url&&url.startsWith('https://')){localStorage.setItem('qms_sheets_url',url);location.reload();}
@@ -2147,16 +2528,9 @@ function bootstrapSetup(){
 
 document.querySelectorAll('.build-tag').forEach(el=>el.textContent=BUILD);
 // Check session first
-if(!hasValidSession()){
-  // Hide main UI until authenticated
-  document.getElementById('hdr').style.display='none';
-  document.querySelector('.bnav').style.display='none';
-  showAccessGate();
-}else{
-  renderDashboard();updateHdr();
+renderDashboard();updateHdr();
   if(SHEETS_URL){loadFromSheets().then(loaded=>{if(loaded){safeRerender();setSyncStatus('ok');}});}
   else{setSyncStatus('idle');}
-}
 </script>
 </body>
 </html>
