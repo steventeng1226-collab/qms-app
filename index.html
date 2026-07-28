@@ -94,7 +94,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f1f5f9;display:f
 <input type="file" id="excelInput" accept=".xlsx,.xls" style="display:none" onchange="handleExcelFile(event)"/>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)"/>
 <script>
-const BUILD='v5.3';
+const BUILD='v5.4';
 
 // ═══════════════════════════════════════════════
 // GOOGLE SHEETS SYNC
@@ -893,10 +893,20 @@ function renderDetail(doScroll=true){
         <span style="color:#94a3b8">發現</span><span style="color:#0f172a">${esc(c.howDetected||'—')}</span>
       </div>`:c.type==='ipqc'?`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12px">
         <span style="color:#94a3b8">分類</span><span style="color:#0f172a;font-weight:500">${esc(c.defectCat||'—')}</span>
-        <span style="color:#94a3b8">站別</span><span style="color:#0f172a">${esc(c.station||'—')}</span>
+        <span style="color:#94a3b8">發生站別</span><span style="color:${c.station?stationColor(c.station):'#dc2626'};font-weight:500">${esc(c.station||'⚠️未指定')}</span>
         <span style="color:#94a3b8">WK</span><span style="color:#0f172a">${esc(c.wk||'—')}</span>
         <span style="color:#94a3b8">責任人</span><span style="color:#0f172a">${esc(c.owner||'—')}</span>
         <span style="color:#94a3b8">再發</span><span style="color:${c.recurrence==='是'?'#dc2626':'#16a34a'}">${c.recurrence||'—'}</span>
+      </div>`:c.type==='fqc1'||c.type==='fqc2'?`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12px">
+        <span style="color:#94a3b8">異常項目</span><span style="color:#0f172a;font-weight:500">${esc(c.anomalyType||'—')}</span>
+        <span style="color:#94a3b8">產品</span><span style="color:#0f172a;font-size:11px">${esc(c.product||'—')}</span>
+        <span style="color:#94a3b8">批次</span><span style="color:#0f172a">${esc(c.batch||'—')} ${esc(c.wk||'')}</span>
+        <span style="color:#94a3b8">🎯源頭站別</span><span>${c.sourceStation?`<span style="color:${stationColor(c.sourceStation)};font-weight:600">${esc(c.sourceStation)}</span>`:'<span style="color:#dc2626">⚠️待確認</span>'}</span>
+        <span style="color:#94a3b8">再發</span><span style="color:${c.recurrence==='是'?'#dc2626':'#16a34a'}">${c.recurrence||'否'}</span>
+      </div>`:c.type==='opr'?`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12px">
+        <span style="color:#94a3b8">品項</span><span style="color:#0f172a;font-weight:500">${esc(c.item||'—')}</span>
+        <span style="color:#94a3b8">地點</span><span style="color:#0f172a">${esc(c.location||'—')}</span>
+        <span style="color:#94a3b8">現狀</span><span style="color:#0f172a;font-size:11px">${esc(c.currentStatus||'—')}</span>
       </div>`:`<div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:8px 0;font-size:12px">
         <span style="color:#94a3b8">標題</span><span style="color:#0f172a">${esc(c.title||'—')}</span>
         <span style="color:#94a3b8">期間</span><span style="color:#0f172a">${esc(c.period||'—')}</span>
