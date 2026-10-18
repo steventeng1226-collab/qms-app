@@ -1,45 +1,11 @@
-// QMS Service Worker - Network First + Offline Support
-// index.html 使用 network-first，更新不需要改此檔案
-
-const CACHE = 'qms-static-v1';
-const PRECACHE = ['./index.html', './icon-192.png', './icon-512.png', './manifest.json'];
-
-self.addEventListener('install', e => {
-  // Pre-cache everything including index.html for offline support
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE)));
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ));
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', e => {
-  const url = e.request.url;
-
-  // API calls: never cache
-  if (url.includes('script.google.com') ||
-      url.includes('anthropic.com') ||
-      url.includes('googleapis.com')) return;
-
-  // index.html: network first → always fresh when online, cached when offline
-  if (url.endsWith('/') || url.includes('index.html')) {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // Static assets: cache first
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
+// 影片轉音檔 service worker：同網站檔案先抓網路（拿到新版），沒網路時用快取
+const CACHE='audio-tool-v1.1.6';
+const SHELL=['./','index.html','manifest.json','icon.svg','icon-192.png','icon-512.png'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}));self.skipWaiting();});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
+self.addEventListener('fetch',e=>{
+  const u=new URL(e.request.url);
+  if(e.request.method!=='GET'||u.origin!==location.origin)return;
+  e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(e.request,c));return r;})
+    .catch(()=>caches.match(e.request).then(r=>r||caches.match('index.html'))));
 });
